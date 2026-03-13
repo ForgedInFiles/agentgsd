@@ -106,11 +106,11 @@ def default_config(provider: str = "openrouter") -> Config:
         },
         "gemini": {
             "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-            "model": "gemini-1.5-pro",
+            "model": "gemini-2.0-flash",
         },
         "groq": {
             "url": "https://api.groq.com/openai/v1/chat/completions",
-            "model": "llama3-70b-8192",
+            "model": "llama-3.3-70b-versatile",
         },
         "mistral": {
             "url": "https://api.mistral.ai/v1/chat/completions",
@@ -118,7 +118,7 @@ def default_config(provider: str = "openrouter") -> Config:
         },
         "ollama": {
             "url": "http://localhost:11434/v1/chat/completions",
-            "model": "llama3",
+            "model": "llama3.3",
         },
         "lmstudio": {
             "url": "http://localhost:1234/v1/chat/completions",
