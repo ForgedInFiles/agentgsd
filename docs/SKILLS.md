@@ -54,6 +54,7 @@ Detailed steps, best practices, and guardrails for the agent.
 | **code-review** | Conduct security-focused, best-practice-aligned code reviews. |
 | **skill-creator** | A meta-skill for designing new agentskills.io-compliant skills. |
 | **ai-code-slop-removal** | Identify and remove redundant AI-generated comments and code. |
+| **gsdmode** | Superpowers-inspired workflow for structured software development cycles |
 
 ## Activating Skills
 

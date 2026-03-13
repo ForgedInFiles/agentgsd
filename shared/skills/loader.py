@@ -26,7 +26,7 @@ import os
 from typing import List, Optional
 
 
-SKILLS_PATH = os.environ.get("SKILLS_PATH", "./skills")
+SKILLS_PATH = os.environ.get("SKILLS_PATH", os.path.expanduser("~/.agentgsd/skills") + ":.agentgsd/skills:packages/agentgsd/skills")
 
 
 class Skill:
@@ -47,7 +47,7 @@ class Skill:
         >>> skill = Skill(
         ...     name="file-organizer",
         ...     description="Organizes files into categories",
-        ...     location="./skills/file-organizer",
+        ...     location="packages/agentgsd/skills/file-organizer",
         ...     instructions_content="You are a file organizer...",
         ...     metadata={"version": "1.0.0", "author": "Dev"}
         ... )
@@ -258,7 +258,7 @@ def skills_xml(paths: Optional[List[str]] = None) -> str:
         >>> xml = skills_xml()
         >>> print(xml)
         <available_skills>
-        <skill name="file-organizer" description="Organizes files" location="./skills/file-organizer"/>
+        <skill name="file-organizer" description="Organizes files" location="packages/agentgsd/skills/file-organizer"/>
         <skill name="code-reviewer" description="Reviews code" location="./skills/code-reviewer"/>
         </available_skills>
     """

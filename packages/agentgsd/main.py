@@ -35,7 +35,7 @@ from shared.tools import (
     BashTool,
 )
 from shared.tools.web_tools import WebSearchTool, WebFetchTool
-from shared.utils.colors import thinking_spinner, loading_spinner
+from shared.utils.colors import thinking_spinner, loading_spinner, YELLOW, RESET
 from shared.utils.formatters import (
     format_tokens,
     context_bar,
@@ -97,11 +97,11 @@ def create_tool_registry() -> ToolRegistry:
 
         def execute(self, args: Dict[str, Any]) -> str:
             """Activate an agent skill.
-            
+
             Args:
                 args: Dictionary containing:
                     - name (str): Name of the skill to activate (required)
-                    
+
             Returns:
                 str: Result of skill activation or error message
             """
@@ -145,7 +145,7 @@ class CommandCompleter(Completer):
 
     def __init__(self, registry: ToolRegistry, skills: List[Any]):
         """Initialize the completer with available commands, tools, and skills.
-        
+
         Args:
             registry: ToolRegistry containing available tools
             skills: List of loaded skill objects
@@ -168,11 +168,11 @@ class CommandCompleter(Completer):
 
     def get_completions(self, document, complete_event):
         """Get completions for the current input.
-        
+
         Args:
             document: The current document state from prompt_toolkit
             complete_event: The completion event from prompt_toolkit
-            
+
         Yields:
             Completion: Suggested completions for commands, tools, skills, or file paths
         """
@@ -229,10 +229,10 @@ class CommandCompleter(Completer):
 
     def _get_command_meta(self, cmd: str) -> str:
         """Get metadata/tooltip for a command.
-        
+
         Args:
             cmd: The command string (e.g., "/help", "/stats")
-            
+
         Returns:
             str: Human-readable description of the command for display in completer
         """
@@ -601,16 +601,19 @@ def main():
     Main entry point for the agentgsd coding assistant.
     """
     parser = argparse.ArgumentParser(description="agentgsd - elite coding assistant")
-    parser.add_argument("--provider", help="API provider (openrouter, gemini, groq, mistral, ollama, lmstudio)")
+    parser.add_argument(
+        "--provider", help="API provider (openrouter, gemini, groq, mistral, ollama, lmstudio)"
+    )
     parser.add_argument("--model", help="Model identifier")
     parser.add_argument("--api-key", help="API key for the provider")
+    parser.add_argument(
+        "--gsdmode", action="store_true", help="Enable gsdmode (Superpowers-inspired workflow)"
+    )
     args = parser.parse_args()
 
     # Set up environment
     client, registry, skills, config = setup_environment(
-        provider=args.provider,
-        model=args.model,
-        api_key=args.api_key
+        provider=args.provider, model=args.model, api_key=args.api_key
     )
 
     # Build system prompt
