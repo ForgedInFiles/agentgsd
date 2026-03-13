@@ -255,11 +255,38 @@ Get environment variable value.
 
 **Returns:** Environment variable value or all variables
 
+### Web Tools
+
+#### WebSearchTool
+Search the web using DuckDuckGo.
+
+**Parameters:**
+- `query` (string): The search query
+- `max_results` (number?, optional): Maximum number of results (default: 5)
+
+**Returns:** List of search results with titles, snippets, and URLs
+
 **Example:**
 ```python
-result = env_tool.execute({"key": "HOME"})
-# or
-result = env_tool.execute({})  # Returns all environment variables
+result = web_search_tool.execute({
+    "query": "Anthropic newest model 2026",
+    "max_results": 3
+})
+```
+
+#### WebFetchTool
+Fetch the content of a web page and convert it to readable text.
+
+**Parameters:**
+- `url` (string): The URL to fetch
+
+**Returns:** Simplified text version of the page content
+
+**Example:**
+```python
+result = web_fetch_tool.execute({
+    "url": "https://agentskills.io"
+})
 ```
 
 ### Skills Tool

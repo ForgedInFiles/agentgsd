@@ -7,14 +7,13 @@
 
 ## Overview
 
-**agentgsd** is an elite coding assistant powered by OpenRouter with a rich terminal UI built using prompt_toolkit. It combines the power of large language models with a comprehensive set of tools and an extensible skills system to provide an unparalleled coding experience.
+**agentgsd** is an elite coding assistant with multi-provider support (OpenRouter, Gemini, Groq, Mistral, Ollama, LMStudio) and a rich terminal UI. It combines the power of diverse LLMs with a comprehensive toolset and an extensible skills system based on the [agentskills.io](https://agentskills.io) open standard.
 
 Designed for developers who demand precision and efficiency, agentgsd offers:
-- Direct integration with OpenRouter's API for access to cutting-edge LLMs
+- Multi-provider support: Choose between cloud APIs (OpenRouter, Gemini, Groq, Mistral) or local endpoints (Ollama, LMStudio)
 - Rich terminal interface with syntax highlighting, autocomplete, and command history
-- Comprehensive file manipulation and search tools
-- Shell command execution capabilities
-- Extensible skills system based on agentskills.io standards
+- Comprehensive file manipulation, search, and **web browsing** tools
+- Extensible skills system with built-in support for Playwright and Agent-Browser
 - Real-time token usage tracking and statistics
 - Markdown rendering for beautiful terminal output
 
@@ -78,7 +77,7 @@ agentgsd/
 ### Prerequisites
 
 - Python 3.9 or higher
-- OpenRouter API key (get one at [https://openrouter.ai/keys](https://openrouter.ai/keys))
+- An API key for your preferred provider (see [Providers](./docs/PROVIDERS.md))
 
 ### Install from Source
 
@@ -87,35 +86,8 @@ agentgsd/
 git clone <repository-url>
 cd agentgsd
 
-# Install in development mode
+# Install dependencies
 pip install -e .
-
-# Or install with development dependencies
-pip install -e ".[dev]"
-```
-
-### Using Docker (Alternative)
-
-```bash
-docker build -t agentgsd .
-docker run -e OPENROUTER_API_KEY=your_key_here -it agentgsd
-```
-
-## Environment Variables
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `OPENROUTER_API_KEY` | API key for OpenRouter | Yes | (none) |
-| `MODEL` | Model identifier to use | No | `nvidia/nemotron-3-super-120b-a12b:free` |
-| `SKILLS_PATH` | Colon-separated paths to skills directories | No | `./skills` |
-| `MAX_TOKENS` | Maximum tokens per API response | No | `8192` |
-| `TIMEOUT` | API request timeout in seconds | No | `120` |
-
-Example setup:
-```bash
-export OPENROUTER_API_KEY="your-openrouter-key-here"
-export MODEL="nvidia/nemotron-3-super-120b-a12b:free"
-export SKILLS_PATH="./skills:/path/to/custom/skills"
 ```
 
 ## Usage
@@ -123,14 +95,26 @@ export SKILLS_PATH="./skills:/path/to/custom/skills"
 ### Starting the Assistant
 
 ```bash
-# Using the installed command
-agentgsd
+# Start with default OpenRouter
+python3 -m packages.agentgsd.main
 
-# Or using Python module
-python -m agentgsd
+# Start with a specific provider and model
+python3 -m packages.agentgsd.main --provider groq --model llama3-70b-8192
 ```
 
-### Available Commands
+See the [CLI Documentation](./docs/CLI.md) for more usage examples and flag details.
+
+### Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- [CLI Reference](./docs/CLI.md) - Flags, commands, and interactive usage
+- [Providers Reference](./docs/PROVIDERS.md) - Supported LLM providers and configuration
+- [Tools Reference](./docs/TOOLS.md) - Built-in tools for files, search, and web
+- [Skills Reference](./docs/SKILLS.md) - How to use and create agent skills
+- [API Reference](./docs/API.md) - Deep dive into the `ApiClient` architecture
+
+## Available Commands
 
 Once running, you can use these commands:
 
