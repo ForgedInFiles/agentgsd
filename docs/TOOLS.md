@@ -412,3 +412,6 @@ Error messages are formatted with ANSI colors for visibility in the terminal.
 - [API Documentation](./API.md) - For information about the API client
 - [Skills Documentation](./SKILLS.md) - For information about the skills system
 - [Shared Tools Source](../shared/tools/) - For implementation details
+---
+
+[← Back to Documentation](./README.md)

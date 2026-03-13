@@ -109,3 +109,7 @@ The `ApiClient` handles various error conditions:
 - [CLI Documentation](./CLI.md) - For how to configure the client via CLI flags
 - [Providers Documentation](./PROVIDERS.md) - For detailed provider information
 - [Tools Documentation](./TOOLS.md) - For information about available tools
+
+---
+
+[← Back to Documentation](./README.md)

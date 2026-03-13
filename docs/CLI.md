@@ -66,3 +66,7 @@ The CLI features rich autocompletion for:
 - Skill names (triggered by `skill:` or `activate`)
 
 Press `Tab` to trigger or cycle through completions.
+
+---
+
+[← Back to Documentation](./README.md)

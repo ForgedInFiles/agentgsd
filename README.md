@@ -106,13 +106,13 @@ See the [CLI Documentation](./docs/CLI.md) for more usage examples and flag deta
 
 ### Documentation
 
-Comprehensive documentation is available in the `docs/` directory:
+Full documentation is available in the [**Documentation Hub**](./docs/README.md):
 
-- [CLI Reference](./docs/CLI.md) - Flags, commands, and interactive usage
-- [Providers Reference](./docs/PROVIDERS.md) - Supported LLM providers and configuration
-- [Tools Reference](./docs/TOOLS.md) - Built-in tools for files, search, and web
-- [Skills Reference](./docs/SKILLS.md) - How to use and create agent skills
-- [API Reference](./docs/API.md) - Deep dive into the `ApiClient` architecture
+- [🚀 **CLI Reference**](./docs/CLI.md) - Flags, commands, and interactive usage
+- [🔌 **Providers Reference**](./docs/PROVIDERS.md) - Supported LLM providers and configuration
+- [🛠 **Tools Reference**](./docs/TOOLS.md) - Built-in tools for files, search, and web
+- [🧠 **Skills Reference**](./docs/SKILLS.md) - How to use and create agent skills
+- [💻 **API Reference**](./docs/API.md) - Deep dive into the `ApiClient` architecture
 
 ## Available Commands
 

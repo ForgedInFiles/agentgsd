@@ -84,3 +84,7 @@ Because `agentgsd` follows the `agentskills.io` standard, skills you create here
 ---
 
 For more information, visit [agentskills.io](https://agentskills.io).
+
+---
+
+[← Back to Documentation](./README.md)

@@ -84,3 +84,7 @@ If you encounter connection errors:
 
 ### Model Mismatch
 Some providers have specific requirements for model naming. If a model is not found, check the provider's official documentation for the exact model string.
+
+---
+
+[← Back to Documentation](./README.md)
