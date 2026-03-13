@@ -6,6 +6,7 @@ including tool registry setup, API interaction, prompt_toolkit UI integration,
 and the main agentic loop for processing user requests.
 """
 
+import argparse
 import os
 import sys
 from typing import Any, Dict, List, Optional
@@ -33,6 +34,7 @@ from shared.tools import (
     FindTool,
     BashTool,
 )
+from shared.tools.web_tools import WebSearchTool, WebFetchTool
 from shared.utils.colors import thinking_spinner, loading_spinner
 from shared.utils.formatters import (
     format_tokens,
@@ -80,6 +82,8 @@ def create_tool_registry() -> ToolRegistry:
     registry.register(GrepTool())
     registry.register(FindTool())
     registry.register(BashTool())
+    registry.register(WebSearchTool())
+    registry.register(WebFetchTool())
 
     class SkillTool(Tool):
         """Tool for activating agent skills."""
@@ -383,12 +387,21 @@ def process_response(
     return tool_results
 
 
-def setup_environment() -> tuple[ApiClient, ToolRegistry, List[Any], object]:
+def setup_environment(
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> tuple[ApiClient, ToolRegistry, List[Any], object]:
     """
     Set up the application environment.
 
     Validates the API key, loads configuration, creates the tool registry,
     and loads skills.
+
+    Args:
+        provider: Optional provider override.
+        model: Optional model override.
+        api_key: Optional API key override.
 
     Returns:
         tuple: (client, registry, skills, config) where:
@@ -398,23 +411,24 @@ def setup_environment() -> tuple[ApiClient, ToolRegistry, List[Any], object]:
             - config: Configuration object
 
     Raises:
-        SystemExit: If OPENROUTER_API_KEY is not set.
+        SystemExit: If API key is not found.
     """
     from shared.utils.colors import RED, YELLOW, DIM, RESET
 
-    api_key = os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
+    config = load_config(provider=provider, model=model, api_key=api_key)
+
+    if not config.api_key and config.provider not in ["ollama", "lmstudio"]:
         print(
-            f"{RED}✗{RESET} Error: {YELLOW}OPENROUTER_API_KEY{RESET} environment variable not set"
+            f"{RED}✗{RESET} Error: API key not found for provider {YELLOW}{config.provider}{RESET}"
         )
-        print(f"{DIM}  Get your key at: https://openrouter.ai/keys{RESET}")
         sys.exit(1)
 
-    config = load_config()
     print_banner(model=config.model)
 
     client = ApiClient(
-        api_key=api_key,
+        provider=config.provider,
+        api_url=config.api_url,
+        api_key=config.api_key,
         model=config.model,
         max_tokens=config.max_tokens,
         timeout=config.timeout,
@@ -585,25 +599,19 @@ def main_interaction_loop(
 def main():
     """
     Main entry point for the agentgsd coding assistant.
-
-    This function initializes the application by:
-    1. Validating the OPENROUTER_API_KEY environment variable
-    2. Printing the application banner
-    3. Creating the tool registry and loading skills
-    4. Starting the main interactive loop
-
-    The loop processes user input, calls the API, executes tools as needed,
-    and displays results with appropriate formatting.
-
-    Environment Variables:
-        OPENROUTER_API_KEY: Required API key for OpenRouter service.
-        SKILLS_PATH: Optional path to skills directory.
-
-    Example:
-        >>> main()  # Requires OPENROUTER_API_KEY to be set
     """
+    parser = argparse.ArgumentParser(description="agentgsd - elite coding assistant")
+    parser.add_argument("--provider", help="API provider (openrouter, gemini, groq, mistral, ollama, lmstudio)")
+    parser.add_argument("--model", help="Model identifier")
+    parser.add_argument("--api-key", help="API key for the provider")
+    args = parser.parse_args()
+
     # Set up environment
-    client, registry, skills, config = setup_environment()
+    client, registry, skills, config = setup_environment(
+        provider=args.provider,
+        model=args.model,
+        api_key=args.api_key
+    )
 
     # Build system prompt
     system_prompt = build_system_prompt()

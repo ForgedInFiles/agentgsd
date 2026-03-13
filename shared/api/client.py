@@ -14,76 +14,42 @@ from typing import Any, Dict, List, Optional
 
 class ApiClient:
     """
-    API client for calling OpenRouter language models.
+    API client for calling various language model providers.
 
-    This class provides an interface for making API calls to OpenRouter.
-    It handles authentication, request formatting, token tracking, and response parsing.
-
-    Attributes:
-        provider: The API provider (always "openrouter").
-        api_url: The base URL for API requests.
-        api_key: The API key for authentication.
-        model: The model identifier to use.
-        max_tokens: Maximum tokens to generate in responses.
-        timeout: Request timeout in seconds.
-        http_referer: HTTP Referer header (OpenRouter only).
-        x_title: X-Title header (OpenRouter only).
-
-    Example:
-        >>> client = ApiClient()
-        >>> messages = [{"role": "user", "content": "What is 2+2?"}]
-        >>> response = client.call_api(messages, "You are a math assistant.")
-        >>> print(response["content"][0]["text"])
-        4
+    This class provides an interface for making API calls to different providers
+    including OpenRouter, Gemini, Groq, Mistral, Ollama, and LMStudio.
     """
-
-    DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1/messages"
-    DEFAULT_OPENROUTER_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
-    DEFAULT_MAX_TOKENS = 8192
 
     def __init__(
         self,
+        provider: str = "openrouter",
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
         max_tokens: Optional[int] = None,
         timeout: int = 120,
-        http_referer: str = "https://github.com/agentgsd",
-        x_title: str = "agentgsd",
     ):
         """
         Initialize the API client.
 
         Args:
-            api_url: The base URL for API requests. If not provided, uses default.
-            api_key: The API key for authentication. If not provided, reads from
-                     environment variable OPENROUTER_API_KEY.
-            model: The model identifier to use. If not provided, uses default.
-            max_tokens: Maximum tokens to generate in responses. Defaults to 8192.
-            timeout: Request timeout in seconds. Defaults to 120.
-            http_referer: HTTP Referer header for OpenRouter. Defaults to GitHub URL.
-            x_title: X-Title header for OpenRouter. Defaults to "agentgsd".
+            provider: The API provider to use.
+            api_url: The base URL for API requests.
+            api_key: The API key for authentication.
+            model: The model identifier to use.
+            max_tokens: Maximum tokens to generate in responses.
+            timeout: Request timeout in seconds.
         """
-        self.provider = "openrouter"  # Always use OpenRouter
-
-        self.api_url = api_url or self.DEFAULT_OPENROUTER_URL
-
-        env_key = "OPENROUTER_API_KEY"
-        self.api_key = api_key or os.environ.get(env_key)
-        if not self.api_key:
-            raise EnvironmentError(
-                f"API key not provided and {env_key} environment variable not set. "
-                f"Get your key at: https://openrouter.ai/keys"
-            )
-
-        self.model = model or self.DEFAULT_OPENROUTER_MODEL
-
-        self.max_tokens = max_tokens or self.DEFAULT_MAX_TOKENS
+        self.provider = provider.lower()
+        self.api_url = api_url
+        self.api_key = api_key
+        self.model = model
+        self.max_tokens = max_tokens or 8192
         self.timeout = timeout
 
-        # OpenRouter-specific headers
-        self.http_referer = http_referer
-        self.x_title = x_title
+        # OpenRouter-specific headers defaults
+        self.http_referer = "https://github.com/agentgsd"
+        self.x_title = "agentgsd"
 
         # Token usage tracking
         self._input_tokens = 0
@@ -91,23 +57,28 @@ class ApiClient:
 
     def _build_headers(self) -> Dict[str, str]:
         """
-        Build request headers for OpenRouter.
-
-        Returns:
-            Dictionary of HTTP headers for OpenRouter API.
-
-        Example:
-            >>> client = ApiClient()
-            >>> headers = client._build_headers()
-            >>> print(headers["Authorization"])
-            Bearer sk-or-...
+        Build request headers based on the provider.
         """
-        return {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": self.http_referer,
-            "X-Title": self.x_title,
-        }
+        headers = {"Content-Type": "application/json"}
+
+        if self.provider == "gemini":
+            # Gemini native API uses x-goog-api-key or key as query param
+            # But if we use the OpenAI-compatible endpoint, it might use Bearer
+            if self.api_key:
+                headers["x-goog-api-key"] = self.api_key
+        elif self.provider == "ollama" or self.provider == "lmstudio":
+            # Usually no auth required for local providers
+            pass
+        else:
+            # OpenRouter, Groq, Mistral use Bearer token
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+
+        if self.provider == "openrouter":
+            headers["HTTP-Referer"] = self.http_referer
+            headers["X-Title"] = self.x_title
+
+        return headers
 
     def _build_payload(
         self,
@@ -116,34 +87,86 @@ class ApiClient:
         tools: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
-        Build the request payload for OpenRouter.
-
-        Args:
-            messages: List of message dictionaries with 'role' and 'content'.
-            system_prompt: System prompt to guide the model's behavior.
-            tools: Optional list of tool definitions for function calling.
-
-        Returns:
-            Dictionary payload for the API request.
-
-        Example:
-            >>> client = ApiClient()
-            >>> messages = [{"role": "user", "content": "Hello"}]
-            >>> payload = client._build_payload(messages, "Be helpful.")
-            >>> print(payload["model"])
-            nvidia/nemotron-3-super-120b-a12b:free
+        Build the request payload based on the provider.
         """
+        # Most providers are OpenAI-compatible
         payload: Dict[str, Any] = {
             "model": self.model,
-            "messages": messages,
             "max_tokens": self.max_tokens,
         }
 
-        if system_prompt:
-            payload["system"] = system_prompt
+        if self.provider == "openrouter":
+            payload["messages"] = messages
+            if system_prompt:
+                payload["system"] = system_prompt
+            if tools:
+                payload["tools"] = tools
+            return payload
 
+        # Default OpenAI-compatible format translation
+        openai_messages = []
+        if system_prompt:
+            openai_messages.append({"role": "system", "content": system_prompt})
+        
+        for msg in messages:
+            role = msg.get("role")
+            content = msg.get("content")
+            
+            if role == "assistant" and isinstance(content, list):
+                # Handle assistant message with tool calls
+                text_content = ""
+                tool_calls = []
+                for block in content:
+                    if block.get("type") == "text":
+                        text_content += block.get("text", "")
+                    elif block.get("type") == "tool_use":
+                        tool_calls.append({
+                            "id": block.get("id"),
+                            "type": "function",
+                            "function": {
+                                "name": block.get("name"),
+                                "arguments": json.dumps(block.get("input", {}))
+                            }
+                        })
+                
+                assist_msg = {"role": "assistant"}
+                if text_content:
+                    assist_msg["content"] = text_content
+                if tool_calls:
+                    assist_msg["tool_calls"] = tool_calls
+                openai_messages.append(assist_msg)
+            
+            elif role == "user" and isinstance(content, list) and content and content[0].get("type") == "tool_result":
+                # Handle tool results
+                for block in content:
+                    if block.get("type") == "tool_result":
+                        openai_messages.append({
+                            "role": "tool",
+                            "tool_call_id": block.get("tool_use_id"),
+                            "content": str(block.get("content", ""))
+                        })
+            else:
+                # Regular user or assistant message
+                if isinstance(content, list):
+                    text = "".join(b.get("text", "") for b in content if b.get("type") == "text")
+                    openai_messages.append({"role": role, "content": text})
+                else:
+                    openai_messages.append({"role": role, "content": content})
+
+        payload["messages"] = openai_messages
         if tools:
-            payload["tools"] = tools
+            # Translate tools to OpenAI format
+            openai_tools = []
+            for tool in tools:
+                openai_tools.append({
+                    "type": "function",
+                    "function": {
+                        "name": tool["name"],
+                        "description": tool["description"],
+                        "parameters": tool["input_schema"]
+                    }
+                })
+            payload["tools"] = openai_tools
 
         return payload
 
@@ -154,67 +177,15 @@ class ApiClient:
         tools: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
-        Call the API with the given messages and return the response.
-
-        This method sends a request to the OpenRouter API with the provided messages
-        and system prompt. It handles authentication, builds the appropriate request
-        headers and payload, and tracks token usage.
-
-        Args:
-            messages: List of message dictionaries. Each message should have 'role'
-                      (one of "system", "user", "assistant", or "tool") and 'content'
-                      (string or list of content blocks). For tool results, include
-                      'tool_use_id' to reference the original tool call.
-            system_prompt: System prompt that guides the model's behavior and provides
-                          context about the assistant's capabilities.
-            tools: Optional list of tool definitions for function calling. Each tool
-                   should have 'name', 'description', and 'input_schema'. Use
-                   make_schema() to generate this from a tool registry.
-
-        Returns:
-            Dictionary containing the API response.
-
-        For OpenRouter, typical structure:
-        ```json
-        {
-          "id": "msg_...",
-          "model": "nvidia/nemotron-3-super-120b-a12b:free",
-          "content": [{"type": "text", "text": "..."}],
-          "usage": {
-            "input_tokens": 100,
-            "output_tokens": 50
-          }
-        }
-        ```
-
-        Raises:
-            urllib.error.URLError: If the request fails due to network issues.
-            ValueError: If the API returns an error response.
-            TimeoutError: If the request times out.
-
-        Example:
-            >>> client = ApiClient()
-            >>> messages = [
-            ...     {"role": "user", "content": "What files are in the current directory?"}
-            ... ]
-            >>> response = client.call_api(
-            ...     messages,
-            ...     "You are a helpful coding assistant.",
-            ...     tools=client.make_schema()
-            ... )
-            >>>
-            >>> # Process response
-            >>> for block in response.get("content", []):
-            ...     if block["type"] == "text":
-            ...         print(block["text"])
-            ...     elif block["type"] == "tool_use":
-            ...         print(f"Tool call: {block['name']}")
+        Call the API and return the response in a normalized format.
         """
         headers = self._build_headers()
         payload = self._build_payload(messages, system_prompt, tools)
 
+        api_url = self.api_url
+
         data = json.dumps(payload).encode("utf-8")
-        request = urllib.request.Request(self.api_url, data=data, headers=headers, method="POST")
+        request = urllib.request.Request(api_url, data=data, headers=headers, method="POST")
 
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
@@ -223,10 +194,44 @@ class ApiClient:
 
                 # Track token usage
                 usage = result.get("usage", {})
-                self._input_tokens += usage.get("input_tokens", 0)
-                self._output_tokens += usage.get("output_tokens", 0)
+                self._input_tokens += usage.get("prompt_tokens", usage.get("input_tokens", 0))
+                self._output_tokens += usage.get("completion_tokens", usage.get("output_tokens", 0))
 
-                return result
+                # Normalize response to Anthropic-style used by agentgsd
+                normalized_result = {
+                    "id": result.get("id"),
+                    "model": result.get("model"),
+                    "content": [],
+                    "usage": {
+                        "input_tokens": usage.get("prompt_tokens", usage.get("input_tokens", 0)),
+                        "output_tokens": usage.get("completion_tokens", usage.get("output_tokens", 0))
+                    }
+                }
+
+                if "choices" in result:
+                    # OpenAI style
+                    choice = result["choices"][0]
+                    message = choice.get("message", {})
+                    if message.get("content"):
+                        normalized_result["content"].append({
+                            "type": "text",
+                            "text": message["content"]
+                        })
+                    
+                    if message.get("tool_calls"):
+                        for tool_call in message["tool_calls"]:
+                            fn = tool_call.get("function", {})
+                            normalized_result["content"].append({
+                                "type": "tool_use",
+                                "id": tool_call.get("id"),
+                                "name": fn.get("name"),
+                                "input": json.loads(fn.get("arguments", "{}"))
+                            })
+                else:
+                    # Assume it's already in the expected format (OpenRouter/Anthropic)
+                    normalized_result = result
+
+                return normalized_result
 
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8")

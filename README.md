@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-integrated-blue)](https://openrouter.ai)
-[![Skills System](https://img.shields.io/badge/Skills-Available-green)](https://agent-skills.io)
+[![Skills System](https://img.shields.io/badge/Skills-Available-green)](https://agentskills.io)
 
 ## Overview
 
@@ -14,7 +14,7 @@ Designed for developers who demand precision and efficiency, agentgsd offers:
 - Rich terminal interface with syntax highlighting, autocomplete, and command history
 - Comprehensive file manipulation and search tools
 - Shell command execution capabilities
-- Extensible skills system based on agent-skills.io standards
+- Extensible skills system based on agentskills.io standards
 - Real-time token usage tracking and statistics
 - Markdown rendering for beautiful terminal output
 
@@ -262,7 +262,7 @@ agentgsd follows a modular architecture designed for extensibility and maintaina
                         ▼                         ▼
                 ┌────────────────────┐    ┌────────────────────┐
                 │   Configuration    │    │   Skills System    │
-                │   (Environment)    │    │   (agent-skills.io)│
+                │   (Environment)    │    │   (agentskills.io)│
                 │   - API keys       │    │   - Skill discovery│
                 │   - Model selection│    │   - Skill loading  │
                 │   - Tool enablement│    │   - Skill activation │
@@ -275,7 +275,7 @@ agentgsd follows a modular architecture designed for extensibility and maintaina
 2. **Agent Core**: Handles LLM interactions via OpenRouter API, token tracking, and system prompt management (located in `packages/agentgsd/main.py`)
 3. **Tool System**: Provides file manipulation, search, shell execution, and skills activation (in `shared/tools/`)
 4. **Configuration System**: Manages environment variables and runtime settings (in `shared/config/`)
-5. **Skills System**: Implements the agent-skills.io framework for extensible workflows (in `shared/skills/` and `skills/` directories)
+5. **Skills System**: Implements the agentskills.io framework for extensible workflows (in `shared/skills/` and `skills/` directories)
 
 ### Data Flow
 
@@ -310,7 +310,7 @@ def my_custom_tool(args):
 
 ### Creating Skills
 
-Skills follow the agent-skills.io standard. Create a directory with:
+Skills follow the agentskills.io standard. Create a directory with:
 
 1. `SKILL.md` - Contains YAML frontmatter and skill instructions
 2. Optional: Additional files, scripts, or resources needed by the skill
@@ -363,7 +363,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [OpenRouter](https://openrouter.ai) for providing access to diverse LLMs
 - [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) for the excellent UI library
-- [agent-skills.io](https://agent-skills.io) for the skills system framework
+- [agentskills.io](https://agentskills.io) for the skills system framework
 - All contributors to the open-source ecosystem that make tools like this possible
 
 ---

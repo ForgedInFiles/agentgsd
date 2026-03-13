@@ -54,14 +54,14 @@ class Config:
     API keys, model selection, and various operational parameters.
 
     Attributes:
-        api_key: The API key for OpenRouter service.
+        api_key: The API key for the selected service.
         api_url: The base URL for the API endpoint.
         model: The model identifier to use.
         max_tokens: Maximum number of tokens for API responses.
         context_window: Context window size for the model.
         skills_path: Path to the skills directory.
         timeout: Timeout for API requests in seconds.
-        provider: The API provider to use (always "openrouter").
+        provider: The API provider to use (openrouter, gemini, groq, mistral, ollama, lmstudio).
 
     Example:
         >>> config = Config(
@@ -71,7 +71,8 @@ class Config:
         ...     max_tokens=8192,
         ...     context_window=200000,
         ...     skills_path="./skills",
-        ...     timeout=120
+        ...     timeout=120,
+        ...     provider="openrouter"
         ... )
         >>> print(config.model)
         nvidia/nemotron-3-super-120b-a12b:free
@@ -87,56 +88,72 @@ class Config:
     provider: str = "openrouter"
 
 
-def default_config() -> Config:
-    """Create a Config instance with default values.
+def default_config(provider: str = "openrouter") -> Config:
+    """Create a Config instance with default values for a provider.
 
-    Returns a Config object populated with default settings:
-    - Provider: "openrouter"
-    - API URL: "https://openrouter.ai/api/v1"
-    - Model: "nvidia/nemotron-3-super-120b-a12b:free"
-    - Max tokens: 8192
-    - Context window: 200000
-    - Skills path: "./skills"
-    - Timeout: 120 seconds
+    Returns a Config object populated with default settings based on provider.
+
+    Args:
+        provider: The API provider (default: "openrouter").
 
     Returns:
         Config: A configuration object with default values.
-
-    Example:
-        >>> config = default_config()
-        >>> config.provider
-        'openrouter'
-        >>> config.model
-        'nvidia/nemotron-3-super-120b-a12b:free'
-        >>> config.max_tokens
-        8192
     """
+    defaults = {
+        "openrouter": {
+            "url": "https://openrouter.ai/api/v1/messages",
+            "model": "nvidia/nemotron-3-super-120b-a12b:free",
+        },
+        "gemini": {
+            "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            "model": "gemini-1.5-pro",
+        },
+        "groq": {
+            "url": "https://api.groq.com/openai/v1/chat/completions",
+            "model": "llama3-70b-8192",
+        },
+        "mistral": {
+            "url": "https://api.mistral.ai/v1/chat/completions",
+            "model": "mistral-large-latest",
+        },
+        "ollama": {
+            "url": "http://localhost:11434/v1/chat/completions",
+            "model": "llama3",
+        },
+        "lmstudio": {
+            "url": "http://localhost:1234/v1/chat/completions",
+            "model": "local-model",
+        },
+    }
+
+    provider_defaults = defaults.get(provider, defaults["openrouter"])
+
     return Config(
         api_key="",
-        api_url="https://openrouter.ai/api/v1",
-        model="nvidia/nemotron-3-super-120b-a12b:free",
+        api_url=provider_defaults["url"],
+        model=provider_defaults["model"],
         max_tokens=8192,
         context_window=200000,
         skills_path="./skills",
         timeout=120,
-        provider="openrouter",
+        provider=provider,
     )
 
 
-def load_config() -> Config:
-    """Load configuration from environment variables.
+def load_config(
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> Config:
+    """Load configuration from environment variables and optional overrides.
 
     Reads configuration from environment variables with fallbacks to default
-    values. Configures OpenRouter API settings.
+    values. Overrides with provided arguments if available.
 
-    Environment Variables:
-        OPENROUTER_API_KEY: API key for OpenRouter service.
-        MODEL: Model identifier. Default: "nvidia/nemotron-3-super-120b-a12b:free"
-        MAX_TOKENS: Maximum tokens (default: 8192).
-        CONTEXT_WINDOW: Context window size (default: 200000).
-        SKILLS_PATH: Path to skills directory (default: "./skills").
-        API_TIMEOUT: Request timeout in seconds (default: 120).
-        OPENROUTER_API_URL: Custom OpenRouter URL (optional).
+    Args:
+        provider: Optional provider override.
+        model: Optional model override.
+        api_key: Optional API key override.
 
     Returns:
         Config: A configuration object populated from environment variables
@@ -144,54 +161,52 @@ def load_config() -> Config:
 
     Raises:
         ValueError: If required API key is missing.
-
-    Example:
-        Basic usage with environment variables:
-            >>> import os
-            >>> os.environ["OPENROUTER_API_KEY"] = "sk-or-..."
-            >>> os.environ["MODEL"] = "nvidia/nemotron-3-super-120b-a12b:free"
-            >>> os.environ["MAX_TOKENS"] = "4096"
-            >>>
-            >>> config = load_config()
-            >>> config.provider
-            'openrouter'
-            >>> config.model
-            'nvidia/nemotron-3-super-120b-a12b:free'
-            >>> config.max_tokens
-            4096
-
-        Custom model and settings:
-            >>> os.environ["MODEL"] = "google/gemini-pro-1.5"
-            >>> os.environ["MAX_TOKENS"] = "4096"
-            >>> os.environ["API_TIMEOUT"] = "60"
-            >>>
-            >>> config = load_config()
-            >>> config.model
-            'google/gemini-pro-1.5'
-            >>> config.timeout
-            60
     """
-    config = default_config()
+    # 1. Determine provider
+    provider = provider or os.environ.get("PROVIDER", "openrouter").lower()
+    
+    # 2. Get defaults for that provider
+    config = default_config(provider)
 
-    # API key (required)
-    config.api_key = os.environ.get("OPENROUTER_API_KEY", "")
-    if not config.api_key:
-        raise ValueError(
-            "API key not found for provider 'openrouter'. "
-            "Set OPENROUTER_API_KEY environment variable."
-        )
+    # 3. Determine API Key
+    if api_key:
+        config.api_key = api_key
+    else:
+        # Provider-specific env vars
+        env_vars = {
+            "openrouter": "OPENROUTER_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "groq": "GROQ_API_KEY",
+            "mistral": "MISTRAL_API_KEY",
+        }
+        env_var = env_vars.get(provider)
+        if env_var:
+            config.api_key = os.environ.get(env_var, "")
+        
+        # Generic fallback
+        if not config.api_key:
+            config.api_key = os.environ.get("API_KEY", "")
 
-    # API URL
-    config.api_url = os.environ.get("OPENROUTER_API_URL", "https://openrouter.ai/api/v1")
+    # 4. Determine Model
+    config.model = model or os.environ.get("MODEL", config.model)
 
-    # Model (with new default)
-    config.model = os.environ.get("MODEL", "nvidia/nemotron-3-super-120b-a12b:free")
+    # 5. Determine API URL
+    url_env_vars = {
+        "openrouter": "OPENROUTER_API_URL",
+        "gemini": "GEMINI_API_URL",
+        "groq": "GROQ_API_URL",
+        "mistral": "MISTRAL_API_URL",
+        "ollama": "OLLAMA_API_URL",
+        "lmstudio": "LMSTUDIO_API_URL",
+    }
+    url_env_var = url_env_vars.get(provider)
+    if url_env_var:
+        config.api_url = os.environ.get(url_env_var, config.api_url)
 
-    # Other settings
+    # 6. Other settings
     config.max_tokens = int(os.environ.get("MAX_TOKENS", config.max_tokens))
     config.context_window = int(os.environ.get("CONTEXT_WINDOW", config.context_window))
     config.skills_path = os.environ.get("SKILLS_PATH", config.skills_path)
     config.timeout = int(os.environ.get("API_TIMEOUT", config.timeout))
-    config.provider = "openrouter"  # Always openrouter
 
     return config

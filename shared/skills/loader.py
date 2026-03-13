@@ -1,8 +1,8 @@
 """
-Skills loader and management module for agent-skills.io framework integration.
+Skills loader and management module for agentskills.io framework integration.
 
 This module provides the core functionality for discovering, loading, and
-activating skills following the agent-skills.io standards. Each skill is
+activating skills following the agentskills.io standards. Each skill is
 defined as a directory containing a SKILL.md file with YAML frontmatter.
 
 The SKILLS_PATH environment variable controls where skills are loaded from,
@@ -31,7 +31,7 @@ SKILLS_PATH = os.environ.get("SKILLS_PATH", "./skills")
 
 class Skill:
     """
-    Represents an agent skill following agent-skills.io framework.
+    Represents an agent skill following agentskills.io framework.
 
     A skill is a self-contained unit of functionality with metadata
     and instructions that can be loaded and activated by the agent.
@@ -82,10 +82,10 @@ class Skill:
     @classmethod
     def from_directory(cls, directory: str) -> Optional["Skill"]:
         """
-        Load a skill from a directory following agent-skills.io standards.
+        Load a skill from a directory following agentskills.io standards.
 
         The directory must contain a SKILL.md file with YAML frontmatter
-        in the format expected by the agent-skills.io framework.
+        in the format expected by the agentskills.io framework.
 
         Args:
             directory: Path to the skill directory

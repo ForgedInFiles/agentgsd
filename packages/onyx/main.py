@@ -16,15 +16,17 @@ The assistant supports the following commands:
     /c - Clear conversation history
 """
 
+import argparse
 import os
 import sys
 
 from shared.api import ApiClient
-from shared.config import default_config
+from shared.config import load_config
 from shared.tools import ToolRegistry, run_tool
 from shared.tools.file_tools import EditTool, ReadTool, WriteTool
 from shared.tools.search_tools import GlobTool, GrepTool
 from shared.tools.shell_tools import BashTool
+from shared.tools.web_tools import WebSearchTool, WebFetchTool
 from shared.utils.colors import BOLD, BLUE, CYAN, DIM, GREEN, RED, RESET
 from shared.utils.formatters import render_markdown, separator
 
@@ -54,6 +56,8 @@ def create_tool_registry() -> ToolRegistry:
     registry.register(GlobTool())
     registry.register(GrepTool())
     registry.register(BashTool())
+    registry.register(WebSearchTool())
+    registry.register(WebFetchTool())
 
     return registry
 
@@ -229,36 +233,31 @@ def agentic_loop(
 def main() -> None:
     """
     Main entry point for the Onyx coding assistant.
-
-    This function initializes the API client, creates the tool registry,
-    and runs the interactive CLI loop. It supports:
-    - File operations: read, write, edit
-    - Search tools: glob, grep
-    - Shell commands: bash
-    - Special commands: /q (quit), /c (clear)
-
-    Environment Variables:
-        OPENROUTER_API_KEY: API key for OpenRouter (default)
-        ANTHROPIC_API_KEY: API key for Anthropic
-        MODEL: Model to use (default varies by provider)
-        ONYX_PROVIDER: Either "openrouter" or "anthropic"
-
-    Example:
-        >>> # Run with default OpenRouter
-        >>> main()
-
-        >>> # Or run as module
-        >>> # python -m packages.onyx
     """
-    config = default_config()
+    parser = argparse.ArgumentParser(description="Onyx - minimal coding assistant")
+    parser.add_argument("--provider", help="API provider (openrouter, gemini, groq, mistral, ollama, lmstudio)")
+    parser.add_argument("--model", help="Model identifier")
+    parser.add_argument("--api-key", help="API key for the provider")
+    args = parser.parse_args()
 
-    provider = os.environ.get("ONYX_PROVIDER", config.provider)
+    config = load_config(
+        provider=args.provider,
+        model=args.model,
+        api_key=args.api_key
+    )
 
-    try:
-        client = ApiClient(provider=provider)
-    except EnvironmentError as e:
-        print(f"{RED}⏺ Error: {e}{RESET}")
+    if not config.api_key and config.provider not in ["ollama", "lmstudio"]:
+        print(f"{RED}⏺ Error: API key not found for provider {config.provider}{RESET}")
         sys.exit(1)
+
+    client = ApiClient(
+        provider=config.provider,
+        api_url=config.api_url,
+        api_key=config.api_key,
+        model=config.model,
+        max_tokens=config.max_tokens,
+        timeout=config.timeout,
+    )
 
     print_welcome(config)
 

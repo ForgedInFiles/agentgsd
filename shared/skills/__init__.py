@@ -1,8 +1,8 @@
 """
-Shared skills system module for agent-skills.io framework integration.
+Shared skills system module for agentskills.io framework integration.
 
 This module provides skill loading, management, and activation functionality
-following the agent-skills.io standards. Skills are defined as directories
+following the agentskills.io standards. Skills are defined as directories
 containing a SKILL.md file with YAML frontmatter.
 
 Example:
