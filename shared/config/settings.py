@@ -106,7 +106,7 @@ def default_config(provider: str = "openrouter") -> Config:
         },
         "gemini": {
             "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-            "model": "gemini-2.0-flash",
+            "model": "gemini-3.1-flash-lite-preview",
         },
         "groq": {
             "url": "https://api.groq.com/openai/v1/chat/completions",
