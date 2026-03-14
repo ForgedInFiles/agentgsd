@@ -39,6 +39,21 @@ from shared.tools import (
     FindTool,
     BashTool,
     EnvTool,
+    GitStatusTool,
+    GitDiffTool,
+    GitLogTool,
+    GitBranchTool,
+    GitCommitTool,
+    GitAddTool,
+    GitResetTool,
+    GitCheckoutTool,
+    GitPushTool,
+    GitPullTool,
+)
+from shared.tools.indexer_tools import (
+    IndexBuildTool,
+    IndexSearchTool,
+    IndexStatsTool,
 )
 from shared.tools.web_tools import WebSearchTool, WebFetchTool
 from shared.utils.colors import thinking_spinner, loading_spinner, YELLOW, RESET
@@ -176,6 +191,19 @@ def create_tool_registry() -> ToolRegistry:
     registry.register(FindTool())
     registry.register(BashTool())
     registry.register(EnvTool())
+    registry.register(GitStatusTool())
+    registry.register(GitDiffTool())
+    registry.register(GitLogTool())
+    registry.register(GitBranchTool())
+    registry.register(GitCommitTool())
+    registry.register(GitAddTool())
+    registry.register(GitResetTool())
+    registry.register(GitCheckoutTool())
+    registry.register(GitPushTool())
+    registry.register(GitPullTool())
+    registry.register(IndexBuildTool())
+    registry.register(IndexSearchTool())
+    registry.register(IndexStatsTool())
     registry.register(WebSearchTool())
     registry.register(WebFetchTool())
 

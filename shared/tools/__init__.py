@@ -54,6 +54,23 @@ from shared.tools.file_tools import (
     WcTool,
     WriteTool,
 )
+from shared.tools.git_tools import (
+    GitAddTool,
+    GitBranchTool,
+    GitCheckoutTool,
+    GitCommitTool,
+    GitDiffTool,
+    GitLogTool,
+    GitPullTool,
+    GitPushTool,
+    GitResetTool,
+    GitStatusTool,
+)
+from shared.tools.indexer_tools import (
+    IndexBuildTool,
+    IndexSearchTool,
+    IndexStatsTool,
+)
 from shared.tools.search_tools import FindTool, GlobTool, GrepTool
 from shared.tools.shell_tools import BashTool, EnvTool
 
@@ -76,4 +93,17 @@ __all__ = [
     "FindTool",
     "BashTool",
     "EnvTool",
+    "GitStatusTool",
+    "GitDiffTool",
+    "GitLogTool",
+    "GitBranchTool",
+    "GitCommitTool",
+    "GitAddTool",
+    "GitResetTool",
+    "GitCheckoutTool",
+    "GitPushTool",
+    "GitPullTool",
+    "IndexBuildTool",
+    "IndexSearchTool",
+    "IndexStatsTool",
 ]
