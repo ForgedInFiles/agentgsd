@@ -21,6 +21,7 @@ from prompt_toolkit.key_binding import KeyBindings
 from shared.api import ApiClient
 from shared.config import load_config
 from shared.skills import load_skills, skills_xml, activate_skill
+from shared.commands import load_commands, execute_command, commands_list
 from shared.tools import (
     Tool,
     ToolRegistry,
@@ -276,12 +277,13 @@ def run_tool(registry: ToolRegistry, name: str, args: Dict[str, Any]) -> str:
 class CommandCompleter(Completer):
     """Custom completer for commands, tools, and file paths."""
 
-    def __init__(self, registry: ToolRegistry, skills: List[Any]):
+    def __init__(self, registry: ToolRegistry, skills: List[Any], commands: List[Any] = None):
         """Initialize the completer with available commands, tools, and skills.
 
         Args:
             registry: ToolRegistry containing available tools
             skills: List of loaded skill objects
+            commands: List of loaded command objects
         """
         self.registry = registry
         self.commands = [
@@ -299,6 +301,10 @@ class CommandCompleter(Completer):
         ]
         self.tools = list(registry._tools.keys())
         self.skills = [skill.name for skill in skills]
+        self.custom_commands = [cmd.name for cmd in (commands or [])]
+        # Add custom commands to completion list
+        for cmd in commands or []:
+            self.commands.append(f"/{cmd.name}")
 
     def get_completions(self, document, complete_event):
         """Get completions for the current input.
@@ -418,13 +424,14 @@ class InputCounter:
         self.last_text = text
 
 
-def get_input(registry: ToolRegistry, skills: List[Any]) -> str:
+def get_input(registry: ToolRegistry, skills: List[Any], commands: List[Any] = None) -> str:
     """
     Get user input using prompt_toolkit with completion support.
 
     Args:
         registry: The tool registry for completion suggestions.
         skills: List of loaded skills for completion.
+        commands: List of loaded custom commands for completion.
 
     Returns:
         str: The user's input string.
@@ -435,7 +442,7 @@ def get_input(registry: ToolRegistry, skills: List[Any]) -> str:
     counter = InputCounter(config.max_input_length)
 
     kb = create_keybindings()
-    completer = CommandCompleter(registry, skills)
+    completer = CommandCompleter(registry, skills, commands)
 
     history_path = os.path.expanduser("~/.agentgsd_history")
     os.makedirs(os.path.dirname(history_path) or ".", exist_ok=True)
@@ -469,6 +476,7 @@ def handle_command(
     token_stats: Dict[str, int],
     client: ApiClient,
     system_prompt: str,
+    commands: List[Any] = None,
 ) -> Optional[str]:
     """
     Handle special commands (/q, /c, /h, /stats, /s, /compact).
@@ -479,11 +487,36 @@ def handle_command(
         token_stats: Token statistics dict (for resetting).
         client: The API client for making requests.
         system_prompt: The system prompt for the API.
+        commands: List of loaded custom commands.
 
     Returns:
         Optional[str]: None to continue, "quit" to exit, or result string to display.
     """
     from shared.config import load_config as load_config_func
+
+    if commands is None:
+        commands = []
+
+    # Check for custom command execution (starts with / but not a built-in command)
+    if user_input.startswith("/"):
+        # Parse command and arguments
+        parts = user_input[1:].split(" ", 1)
+        cmd_name = parts[0]
+        cmd_args = parts[1] if len(parts) > 1 else ""
+
+        # Check if it's a custom command
+        for cmd in commands:
+            if cmd.matches(cmd_name):
+                # Execute the custom command
+                command_content = cmd.execute(cmd_args)
+                print()
+                print_separator("light", Colors.DIM)
+                print(f"{Colors.BRIGHT_CYAN}Executing: /{cmd.name}{Colors.RESET}")
+                print(f"{Colors.DIM}Arguments: {cmd_args or '(none)'}{Colors.RESET}")
+                print_separator("light", Colors.DIM)
+                # Add command content to messages and return "continue" to process it
+                messages.append({"role": "user", "content": command_content})
+                return "continue"
 
     if user_input in ("/q", "/quit", "/exit"):
         return "quit"
@@ -497,7 +530,28 @@ def handle_command(
         return None
 
     if user_input in ("/h", "/help"):
-        print_help_detailed()
+        commands = load_commands()
+        print_help_detailed(commands)
+        return None
+
+    if user_input in ("/cmds", "/commands"):
+        commands = load_commands()
+        if not commands:
+            Notification.info(
+                "No custom commands found. Add .md files to ~/.agentgsd/commands/ or .agentgsd/commands/"
+            )
+        else:
+            print()
+            print(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}Custom Commands{Colors.RESET}")
+            print(f"{Colors.BRIGHT_CYAN}{'─' * 40}{Colors.RESET}\n")
+            for cmd in commands:
+                alias_info = (
+                    f" (aliases: {', '.join(['/' + a for a in cmd.aliases])})"
+                    if cmd.aliases
+                    else ""
+                )
+                print(f"  {Colors.BRIGHT_YELLOW}/{cmd.name}{alias_info}{Colors.RESET}")
+                print(f"    {Colors.DIM}{cmd.description}{Colors.RESET}\n")
         return None
 
     if user_input == "/stats":
@@ -642,6 +696,7 @@ When a user's request matches a skill description, use the skill tool to activat
 def handle_user_input(
     registry: ToolRegistry,
     skills: List[Any],
+    commands: List[Any],
     messages: List[Dict[str, Any]],
     token_stats: Dict[str, int],
     client: ApiClient,
@@ -653,6 +708,7 @@ def handle_user_input(
     Args:
         registry: The tool registry for completion suggestions.
         skills: List of loaded skills.
+        commands: List of loaded custom commands.
         messages: The conversation messages list.
         token_stats: Token statistics dict.
         client: The API client for making requests.
@@ -661,12 +717,12 @@ def handle_user_input(
     Returns:
         Optional[str]: None to continue, "quit" to exit, or "continue" to proceed.
     """
-    user_input = get_input(registry, skills)
+    user_input = get_input(registry, skills, commands)
 
     if not user_input:
         return None
 
-    result = handle_command(user_input, messages, token_stats, client, system_prompt)
+    result = handle_command(user_input, messages, token_stats, client, system_prompt, commands)
     if result == "quit":
         return "quit"
     if result is None:
@@ -752,11 +808,12 @@ def main_interaction_loop(
 
     messages: List[Dict[str, Any]] = []
     token_stats = {"input": 0, "output": 0, "total": 0}
+    commands = load_commands()
 
     while True:
         try:
             result = handle_user_input(
-                registry, skills, messages, token_stats, client, system_prompt
+                registry, skills, commands, messages, token_stats, client, system_prompt
             )
 
             if result == "quit":

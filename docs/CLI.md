@@ -99,6 +99,84 @@ The CLI features rich autocompletion for:
 
 Press `Tab` to trigger or cycle through completions.
 
+## Custom Slash Commands
+
+agentgsd supports custom slash commands similar to Claude Code. Commands are defined as markdown files with YAML frontmatter.
+
+### Command Locations
+
+Commands are loaded from (in order of priority):
+1. **Per-project**: `.agentgsd/commands/` (in project root)
+2. **Package-installed**: Commands bundled with agentgsd (e.g., `/commit`, `/test`, `/fix`)
+3. **Global**: `~/.agentgsd/commands/` (user home directory)
+
+### Command File Format
+
+```markdown
+---
+name: command-name
+description: Human-readable description
+aliases: [alias1, alias2]
+---
+
+# Command instructions
+Your command prompt here...
+Use $ARGUMENTS to include user-provided arguments.
+Use $FILE for the first selected file.
+Use $SELECTED_FILES for all selected files.
+```
+
+### Placeholders
+
+| Placeholder | Description |
+|-------------|-------------|
+| `$ARGUMENTS` | User-provided arguments after command name |
+| `$FILE` | First selected file |
+| `$SELECTED_FILES` | All selected files (comma-separated) |
+| `$FILE_COUNT` | Number of selected files |
+
+### Example Commands
+
+```markdown
+---
+name: review
+description: Review code for bugs and issues
+aliases: [code-review]
+---
+
+Review the code in $FILE for:
+1. Bugs and potential errors
+2. Security vulnerabilities
+3. Performance concerns
+
+Provide specific line numbers and fixes.
+```
+
+### Usage
+
+```bash
+/review src/main.py
+/test utils/helper.py
+/commit
+```
+
+### Managing Commands
+
+| Command | Description |
+|---------|-------------|
+| `/cmds`, `/commands` | List all custom commands |
+| Tab completion | Auto-complete command names |
+
+### Built-in Commands
+
+agentgsd comes with these default commands:
+
+| Command | Description |
+|---------|-------------|
+| `/commit` | Create a git commit with proper conventions |
+| `/test` | Generate unit tests for a file |
+| `/fix` | Fix bugs using systematic debugging |
+
 ---
 
 [← Back to Documentation](./README.md)

@@ -684,7 +684,7 @@ def print_welcome_message(model: str = None) -> None:
     print(f"\n{Colors.BRIGHT_CYAN}{'─' * min(width, 60)}{Colors.RESET}\n")
 
 
-def print_help_detailed() -> None:
+def print_help_detailed(commands: List[Any] = None) -> None:
     """Print detailed help information."""
     width = get_terminal_width()
 
@@ -699,6 +699,7 @@ def print_help_detailed() -> None:
                 ("/c, /clear", "Clear conversation history"),
                 ("/h, /help", "Show this help message"),
                 ("/s, /skills", "List available skills"),
+                ("/cmds, /commands", "List custom commands"),
                 ("/stats", "Show token usage statistics"),
                 ("/compact", "Compact conversation to save context"),
             ],
@@ -717,6 +718,16 @@ def print_help_detailed() -> None:
         print(f"{Colors.BOLD}{Colors.BRIGHT_YELLOW}{section_name}:{Colors.RESET}")
         for cmd, desc in items:
             print(f"  {Colors.BRIGHT_CYAN}{cmd:20}{Colors.RESET} {desc}")
+        print()
+
+    # Show custom commands if any exist
+    if commands:
+        print(f"{Colors.BOLD}{Colors.BRIGHT_YELLOW}Custom Commands:{Colors.RESET}")
+        for cmd in commands:
+            alias_info = f" ({', '.join(['/' + a for a in cmd.aliases])})" if cmd.aliases else ""
+            print(
+                f"  {Colors.BRIGHT_CYAN}/{cmd.name}{alias_info:25}{Colors.RESET} {cmd.description}"
+            )
         print()
 
     print(f"{Colors.BRIGHT_CYAN}{'─' * min(width - 10, 50)}{Colors.RESET}\n")
