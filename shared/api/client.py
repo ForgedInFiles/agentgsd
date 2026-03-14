@@ -107,11 +107,11 @@ class ApiClient:
         openai_messages = []
         if system_prompt:
             openai_messages.append({"role": "system", "content": system_prompt})
-        
+
         for msg in messages:
             role = msg.get("role")
             content = msg.get("content")
-            
+
             if role == "assistant" and isinstance(content, list):
                 # Handle assistant message with tool calls
                 text_content = ""
@@ -120,31 +120,40 @@ class ApiClient:
                     if block.get("type") == "text":
                         text_content += block.get("text", "")
                     elif block.get("type") == "tool_use":
-                        tool_calls.append({
-                            "id": block.get("id"),
-                            "type": "function",
-                            "function": {
-                                "name": block.get("name"),
-                                "arguments": json.dumps(block.get("input", {}))
+                        tool_calls.append(
+                            {
+                                "id": block.get("id"),
+                                "type": "function",
+                                "function": {
+                                    "name": block.get("name"),
+                                    "arguments": json.dumps(block.get("input", {})),
+                                },
                             }
-                        })
-                
+                        )
+
                 assist_msg = {"role": "assistant"}
                 if text_content:
                     assist_msg["content"] = text_content
                 if tool_calls:
                     assist_msg["tool_calls"] = tool_calls
                 openai_messages.append(assist_msg)
-            
-            elif role == "user" and isinstance(content, list) and content and content[0].get("type") == "tool_result":
+
+            elif (
+                role == "user"
+                and isinstance(content, list)
+                and content
+                and content[0].get("type") == "tool_result"
+            ):
                 # Handle tool results
                 for block in content:
                     if block.get("type") == "tool_result":
-                        openai_messages.append({
-                            "role": "tool",
-                            "tool_call_id": block.get("tool_use_id"),
-                            "content": str(block.get("content", ""))
-                        })
+                        openai_messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": block.get("tool_use_id"),
+                                "content": str(block.get("content", "")),
+                            }
+                        )
             else:
                 # Regular user or assistant message
                 if isinstance(content, list):
@@ -158,14 +167,16 @@ class ApiClient:
             # Translate tools to OpenAI format
             openai_tools = []
             for tool in tools:
-                openai_tools.append({
-                    "type": "function",
-                    "function": {
-                        "name": tool["name"],
-                        "description": tool["description"],
-                        "parameters": tool["input_schema"]
+                openai_tools.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool["name"],
+                            "description": tool["description"],
+                            "parameters": tool["input_schema"],
+                        },
                     }
-                })
+                )
             payload["tools"] = openai_tools
 
         return payload
@@ -175,10 +186,20 @@ class ApiClient:
         messages: List[Dict[str, Any]],
         system_prompt: str,
         tools: Optional[List[Dict[str, Any]]] = None,
+        max_retries: int = 3,
     ) -> Dict[str, Any]:
         """
         Call the API and return the response in a normalized format.
+
+        Args:
+            messages: List of message dictionaries.
+            system_prompt: System prompt string.
+            tools: Optional list of tool definitions.
+            max_retries: Maximum number of retry attempts for transient errors.
         """
+        import time
+        import socket
+
         headers = self._build_headers()
         payload = self._build_payload(messages, system_prompt, tools)
 
@@ -187,60 +208,88 @@ class ApiClient:
         data = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(api_url, data=data, headers=headers, method="POST")
 
-        try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                response_data = response.read().decode("utf-8")
-                result = json.loads(response_data)
-
-                # Track token usage
-                usage = result.get("usage", {})
-                self._input_tokens += usage.get("prompt_tokens", usage.get("input_tokens", 0))
-                self._output_tokens += usage.get("completion_tokens", usage.get("output_tokens", 0))
-
-                # Normalize response to Anthropic-style used by agentgsd
-                normalized_result = {
-                    "id": result.get("id"),
-                    "model": result.get("model"),
-                    "content": [],
-                    "usage": {
-                        "input_tokens": usage.get("prompt_tokens", usage.get("input_tokens", 0)),
-                        "output_tokens": usage.get("completion_tokens", usage.get("output_tokens", 0))
-                    }
-                }
-
-                if "choices" in result:
-                    # OpenAI style
-                    choice = result["choices"][0]
-                    message = choice.get("message", {})
-                    if message.get("content"):
-                        normalized_result["content"].append({
-                            "type": "text",
-                            "text": message["content"]
-                        })
-                    
-                    if message.get("tool_calls"):
-                        for tool_call in message["tool_calls"]:
-                            fn = tool_call.get("function", {})
-                            normalized_result["content"].append({
-                                "type": "tool_use",
-                                "id": tool_call.get("id"),
-                                "name": fn.get("name"),
-                                "input": json.loads(fn.get("arguments", "{}"))
-                            })
-                else:
-                    # Assume it's already in the expected format (OpenRouter/Anthropic)
-                    normalized_result = result
-
-                return normalized_result
-
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode("utf-8")
+        last_error = None
+        for attempt in range(max_retries):
             try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    response_data = response.read().decode("utf-8")
+                    result = json.loads(response_data)
+
+                    # Track token usage
+                    usage = result.get("usage", {})
+                    self._input_tokens += usage.get("prompt_tokens", usage.get("input_tokens", 0))
+                    self._output_tokens += usage.get(
+                        "completion_tokens", usage.get("output_tokens", 0)
+                    )
+
+                    # Normalize response to Anthropic-style used by agentgsd
+                    normalized_result = {
+                        "id": result.get("id"),
+                        "model": result.get("model"),
+                        "content": [],
+                        "usage": {
+                            "input_tokens": usage.get(
+                                "prompt_tokens", usage.get("input_tokens", 0)
+                            ),
+                            "output_tokens": usage.get(
+                                "completion_tokens", usage.get("output_tokens", 0)
+                            ),
+                        },
+                    }
+
+                    if "choices" in result:
+                        # OpenAI style
+                        choice = result["choices"][0]
+                        message = choice.get("message", {})
+                        if message.get("content"):
+                            normalized_result["content"].append(
+                                {"type": "text", "text": message["content"]}
+                            )
+
+                        if message.get("tool_calls"):
+                            for tool_call in message["tool_calls"]:
+                                fn = tool_call.get("function", {})
+                                normalized_result["content"].append(
+                                    {
+                                        "type": "tool_use",
+                                        "id": tool_call.get("id"),
+                                        "name": fn.get("name"),
+                                        "input": json.loads(fn.get("arguments", "{}")),
+                                    }
+                                )
+                    else:
+                        # Assume it's already in the expected format (OpenRouter/Anthropic)
+                        normalized_result = result
+
+                    return normalized_result
+
+            except (urllib.error.HTTPError, TimeoutError, socket.timeout) as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
+                    print(
+                        f"\n⚠ Request timed out (attempt {attempt + 1}/{max_retries}). Retrying in {wait_time}s..."
+                    )
+                    time.sleep(wait_time)
+                continue
+
+        # All retries failed
+        if isinstance(last_error, urllib.error.HTTPError):
+            try:
+                error_body = last_error.read().decode("utf-8")
                 error_json = json.loads(error_body)
-                error_msg = error_json.get("error", {}).get("message", str(e))
-            except json.JSONDecodeError:
-                error_msg = f"HTTP {e.code}: {error_body}"
-            raise ValueError(f"API error: {error_msg}") from e
+                error_msg = error_json.get("error", {}).get("message", str(last_error))
+            except (json.JSONDecodeError, AttributeError):
+                error_msg = (
+                    f"HTTP {last_error.code}: {error_body}"
+                    if hasattr(last_error, "code")
+                    else str(last_error)
+                )
+            raise ValueError(f"API error after {max_retries} retries: {error_msg}") from last_error
+        else:
+            raise ValueError(
+                f"Request timed out after {max_retries} retries: {last_error}"
+            ) from last_error
 
     def get_usage(self) -> Dict[str, int]:
         """
