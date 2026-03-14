@@ -18,6 +18,7 @@ from shared.skills.loader import (
     load_skills,
     skills_xml,
     activate_skill,
+    SKILLS_PATH,
 )
 
 __all__ = [
@@ -25,4 +26,5 @@ __all__ = [
     "load_skills",
     "skills_xml",
     "activate_skill",
+    "SKILLS_PATH",
 ]

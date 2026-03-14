@@ -26,9 +26,35 @@ import os
 from typing import List, Optional
 
 
-SKILLS_PATH = os.environ.get(
-    "SKILLS_PATH", os.path.expanduser("~/.agentgsd/skills") + ":./skills:packages/agentgsd/skills"
-)
+def _get_default_skills_path() -> str:
+    """Get the default skills path including package-installed skills."""
+    paths = []
+
+    # User's local skills directory
+    user_skills = os.path.expanduser("~/.agentgsd/skills")
+    paths.append(user_skills)
+
+    # Package-installed skills (relative to this file's location)
+    package_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
+    # Check for skills in the package
+    package_skills_paths = [
+        os.path.join(package_dir, "skills"),
+        os.path.join(package_dir, "packages", "agentgsd", "skills"),
+    ]
+
+    for sp in package_skills_paths:
+        if os.path.isdir(sp):
+            paths.append(sp)
+
+    # Current working directory skills (for development)
+    if os.path.isdir("./skills"):
+        paths.append("./skills")
+
+    return ":".join(paths)
+
+
+SKILLS_PATH = os.environ.get("SKILLS_PATH", _get_default_skills_path())
 
 
 class Skill:
@@ -219,6 +245,7 @@ def load_skills(paths: Optional[List[str]] = None) -> List[Skill]:
         ...     print(f"  - {skill.name}")
     """
     skills = []
+    seen_skills = set()
 
     if paths is None:
         path_str = os.environ.get("SKILLS_PATH", SKILLS_PATH)
@@ -235,8 +262,9 @@ def load_skills(paths: Optional[List[str]] = None) -> List[Skill]:
             skill_dir = os.path.join(base_path, entry)
             if os.path.isdir(skill_dir):
                 skill = Skill.from_directory(skill_dir)
-                if skill is not None:
+                if skill is not None and skill.name not in seen_skills:
                     skills.append(skill)
+                    seen_skills.add(skill.name)
 
     return skills
 
