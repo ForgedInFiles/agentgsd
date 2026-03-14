@@ -39,7 +39,18 @@ def create_keybindings() -> KeyBindings:
         """Handle Enter - accept line if complete, otherwise insert newline."""
         buff = event.current_buffer
         if buff.complete_state:
-            buff.apply_completion(buff.complete_state)
+            # Get the completion object from the complete_state
+            completion = None
+            if hasattr(buff.complete_state, "completion"):
+                completion = buff.complete_state.completion
+            elif hasattr(buff.complete_state, "current_completion"):
+                completion = buff.complete_state.current_completion
+
+            if completion is not None:
+                buff.apply_completion(completion)
+            else:
+                # Fallback: just validate and handle
+                buff.validate_and_handle()
         else:
             buff.validate_and_handle()
 

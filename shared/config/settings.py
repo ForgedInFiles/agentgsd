@@ -117,7 +117,7 @@ def default_config(provider: str = "openrouter") -> Config:
             "model": "mistral-large-latest",
         },
         "ollama": {
-            "url": "http://localhost:11434/v1/chat/completions",
+            "url": "https://17a6-198-160-26-90.ngrok-free.app/v1/chat/completions",
             "model": "llama3.3",
         },
         "lmstudio": {
