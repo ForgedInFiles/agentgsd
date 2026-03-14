@@ -26,7 +26,9 @@ import os
 from typing import List, Optional
 
 
-SKILLS_PATH = os.environ.get("SKILLS_PATH", os.path.expanduser("~/.agentgsd/skills") + ":.agentgsd/skills:packages/agentgsd/skills")
+SKILLS_PATH = os.environ.get(
+    "SKILLS_PATH", os.path.expanduser("~/.agentgsd/skills") + ":./skills:packages/agentgsd/skills"
+)
 
 
 class Skill:
