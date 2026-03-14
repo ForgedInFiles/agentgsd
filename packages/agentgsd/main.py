@@ -30,9 +30,15 @@ from shared.tools import (
     MkdirTool,
     LsTool,
     TreeTool,
+    HeadTool,
+    TailTool,
+    WcTool,
+    PwdTool,
     GrepTool,
+    GlobTool,
     FindTool,
     BashTool,
+    EnvTool,
 )
 from shared.tools.web_tools import WebSearchTool, WebFetchTool
 from shared.utils.colors import thinking_spinner, loading_spinner, YELLOW, RESET
@@ -161,9 +167,15 @@ def create_tool_registry() -> ToolRegistry:
     registry.register(MkdirTool())
     registry.register(LsTool())
     registry.register(TreeTool())
+    registry.register(HeadTool())
+    registry.register(TailTool())
+    registry.register(WcTool())
+    registry.register(PwdTool())
     registry.register(GrepTool())
+    registry.register(GlobTool())
     registry.register(FindTool())
     registry.register(BashTool())
+    registry.register(EnvTool())
     registry.register(WebSearchTool())
     registry.register(WebFetchTool())
 
