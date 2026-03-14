@@ -11,6 +11,7 @@ Environment Variables:
     SKILLS_PATH (str): Path to skills directory. Default: "./skills".
     API_TIMEOUT (int): Timeout for API requests in seconds. Default: 120.
     OPENROUTER_API_URL (str): Custom URL for OpenRouter API. Optional.
+    MAX_INPUT_LENGTH (int): Maximum allowed input length in characters. Default: 50000.
 
 Example usage:
     Load configuration from environment variables:
@@ -62,6 +63,7 @@ class Config:
         skills_path: Path to the skills directory.
         timeout: Timeout for API requests in seconds.
         provider: The API provider to use (openrouter, gemini, groq, mistral, ollama, lmstudio).
+        max_input_length: Maximum allowed input length in characters.
 
     Example:
         >>> config = Config(
@@ -86,6 +88,7 @@ class Config:
     skills_path: str
     timeout: int
     provider: str = "openrouter"
+    max_input_length: int = 50000
 
 
 def default_config(provider: str = "openrouter") -> Config:
@@ -137,6 +140,7 @@ def default_config(provider: str = "openrouter") -> Config:
         skills_path="./skills",
         timeout=120,
         provider=provider,
+        max_input_length=50000,
     )
 
 
@@ -164,7 +168,7 @@ def load_config(
     """
     # 1. Determine provider
     provider = provider or os.environ.get("PROVIDER", "openrouter").lower()
-    
+
     # 2. Get defaults for that provider
     config = default_config(provider)
 
@@ -182,7 +186,7 @@ def load_config(
         env_var = env_vars.get(provider)
         if env_var:
             config.api_key = os.environ.get(env_var, "")
-        
+
         # Generic fallback
         if not config.api_key:
             config.api_key = os.environ.get("API_KEY", "")
@@ -208,5 +212,6 @@ def load_config(
     config.context_window = int(os.environ.get("CONTEXT_WINDOW", config.context_window))
     config.skills_path = os.environ.get("SKILLS_PATH", config.skills_path)
     config.timeout = int(os.environ.get("API_TIMEOUT", config.timeout))
+    config.max_input_length = int(os.environ.get("MAX_INPUT_LENGTH", config.max_input_length))
 
     return config

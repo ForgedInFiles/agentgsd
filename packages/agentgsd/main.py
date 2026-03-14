@@ -335,6 +335,38 @@ class CommandCompleter(Completer):
         return meta.get(cmd, "Command")
 
 
+class InputCounter:
+    """Tracks character/word count for large input handling."""
+
+    def __init__(self, max_length: int = 50000):
+        self.max_length = max_length
+        self.warning_threshold = max_length - 5
+        self.last_text = ""
+
+    def get_counter_display(self, text: str = "") -> Optional[str]:
+        """Get the counter display text if input is large enough."""
+        if not text:
+            text = self.last_text
+
+        char_count = len(text)
+        word_count = len(text.split()) if text.strip() else 0
+
+        if char_count >= self.warning_threshold:
+            if char_count >= self.max_length:
+                status = "MAX"
+            elif char_count >= self.warning_threshold + 1000:
+                status = f"{char_count}/{self.max_length}"
+            else:
+                status = f"{char_count}/{self.max_length}"
+
+            return f"[{status} | {word_count} words]"
+        return None
+
+    def update_text(self, text: str):
+        """Update the cached text."""
+        self.last_text = text
+
+
 def get_input(registry: ToolRegistry, skills: List[Any]) -> str:
     """
     Get user input using prompt_toolkit with completion support.
@@ -346,6 +378,11 @@ def get_input(registry: ToolRegistry, skills: List[Any]) -> str:
     Returns:
         str: The user's input string.
     """
+    from shared.config import load_config
+
+    config = load_config()
+    counter = InputCounter(config.max_input_length)
+
     kb = create_keybindings()
     completer = CommandCompleter(registry, skills)
 
@@ -363,6 +400,13 @@ def get_input(registry: ToolRegistry, skills: List[Any]) -> str:
             key_bindings=kb,
             multiline=False,
         )
+        counter.update_text(user_input)
+
+        # Show counter in bottom toolbar if input is large
+        counter_display = counter.get_counter_display()
+        if counter_display:
+            print(f"\n{counter_display}")
+
         return user_input.strip()
     except (KeyboardInterrupt, EOFError):
         raise
