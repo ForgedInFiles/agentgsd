@@ -42,6 +42,26 @@ from shared.ui.prompts import (
     style,
 )
 
+from shared.ui.enhanced import (
+    Colors,
+    Theme,
+    Icons,
+    Notification,
+    ProgressBar,
+    box,
+    separator,
+    print_assistant_message,
+    ThinkingSpinner,
+    StreamingText,
+    print_separator,
+    print_welcome_message,
+    print_help_detailed,
+    print_skills_list,
+    EnhancedPrompt,
+    format_tokens,
+    context_bar,
+)
+
 __all__ = [
     "CommandCompleter",
     "create_keybindings",
@@ -53,4 +73,21 @@ __all__ = [
     "show_commands_popup",
     "show_help_popup",
     "style",
+    "Colors",
+    "Theme",
+    "Icons",
+    "Notification",
+    "ProgressBar",
+    "box",
+    "separator",
+    "print_assistant_message",
+    "ThinkingSpinner",
+    "StreamingText",
+    "print_separator",
+    "print_welcome_message",
+    "print_help_detailed",
+    "print_skills_list",
+    "EnhancedPrompt",
+    "format_tokens",
+    "context_bar",
 ]

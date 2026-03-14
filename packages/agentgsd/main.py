@@ -56,12 +56,23 @@ from shared.tools.indexer_tools import (
     IndexStatsTool,
 )
 from shared.tools.web_tools import WebSearchTool, WebFetchTool
-from shared.utils.colors import thinking_spinner, loading_spinner, YELLOW, RESET
-from shared.utils.formatters import (
+from shared.ui.enhanced import (
+    print_banner as print_banner_enhanced,
+    print_tool_call as print_tool_call_enhanced,
+    print_tool_result as print_tool_result_enhanced,
+    print_stats as print_stats_enhanced,
+    print_assistant_message,
+    print_help_detailed,
+    print_skills_list,
+    print_separator,
+    Notification,
+    ThinkingSpinner,
+    Colors,
+    Theme,
+    Icons,
+    EnhancedPrompt,
     format_tokens,
     context_bar,
-    render_markdown,
-    separator,
 )
 from shared.ui import (
     style,
@@ -431,10 +442,10 @@ def get_input(registry: ToolRegistry, skills: List[Any]) -> str:
 
     try:
         user_input = prompt(
-            [("class:prompt", "❯ "), ("bold", "")],
+            HTML(f"<prompt>❯ </prompt>"),
             completer=completer,
             complete_while_typing=True,
-            style=style,
+            style=EnhancedPrompt.get_style(),
             auto_suggest=AutoSuggestFromHistory(),
             history=FileHistory(history_path),
             key_bindings=kb,
@@ -472,7 +483,7 @@ def handle_command(
     Returns:
         Optional[str]: None to continue, "quit" to exit, or result string to display.
     """
-    from shared.utils.colors import GREEN, YELLOW, DIM, MAGENTA, BOLD, RESET
+    from shared.config import load_config as load_config_func
 
     if user_input in ("/q", "/quit", "/exit"):
         return "quit"
@@ -482,34 +493,28 @@ def handle_command(
         token_stats["input"] = 0
         token_stats["output"] = 0
         token_stats["total"] = 0
-        print(f"\n{GREEN}✓{RESET} Conversation cleared")
+        Notification.success("Conversation cleared", Icons.CHECK)
         return None
 
     if user_input in ("/h", "/help"):
-        show_help_popup(None)
+        print_help_detailed()
         return None
 
     if user_input == "/stats":
-        config = load_config()
-        pct = (token_stats["total"] / config.context_window * 100) if config.context_window else 0
-        bar = context_bar(token_stats["total"], config.context_window)
-        stats = f"  {DIM}│{RESET} 📊 {BOLD}In:{format_tokens(token_stats['input'])}{RESET} {DIM}·{RESET} {BOLD}Out:{format_tokens(token_stats['output'])}{RESET} {DIM}·{RESET} {BOLD}Ctx:{pct:.1f}%{RESET} {bar}"
-        print(stats)
+        from shared.config import load_config as load_config_func
+
+        config = load_config_func()
+        print_stats_enhanced(token_stats, config.context_window)
         return None
 
     if user_input == "/compact":
         messages = compact_conversation(messages, client, system_prompt, token_stats)
-        print(f"\n{YELLOW}⚠{RESET} Conversation compacted.{RESET}\n")
+        Notification.warning("Conversation compacted", Icons.WARNING)
         return None
 
     if user_input in ("/s", "/skills"):
         skills = load_skills()
-        if not skills:
-            print(f"\n{DIM}No skills loaded. Set SKILLS_PATH environment variable.{RESET}")
-        else:
-            print(f"\n{DIM}Available Skills:{RESET}")
-            for skill in skills:
-                print(f"  {GREEN}{skill.name:20}{RESET} {skill.description}")
+        print_skills_list(skills)
         return None
 
     return "continue"
@@ -539,17 +544,18 @@ def process_response(
     for block in content_blocks:
         if block.get("type") == "text":
             text_content = block.get("text", "")
-            print(f"\n{separator('─', CYAN)}")
-            print(render_markdown(text_content))
-            print(f"{separator('─', CYAN)}")
+            print()
+            print_separator("light", Colors.DIM)
+            print_assistant_message(text_content)
+            print_separator("light", Colors.DIM)
 
         if block.get("type") == "tool_use":
             tool_name = block.get("name")
             tool_args = block.get("input", {})
-            print_tool_call(tool_name, tool_args)
+            print_tool_call_enhanced(tool_name, tool_args)
 
             result = run_tool(registry, tool_name, tool_args)
-            print_tool_result(result)
+            print_tool_result_enhanced(result)
 
             tool_results.append(
                 {
@@ -600,7 +606,8 @@ def setup_environment(
         )
         sys.exit(1)
 
-    print_banner(model=config.model)
+    skills = load_skills()
+    print_banner_enhanced(model=config.model, provider=config.provider, skills_count=len(skills))
 
     client = ApiClient(
         provider=config.provider,
@@ -612,7 +619,6 @@ def setup_environment(
     )
 
     registry = create_tool_registry()
-    skills = load_skills()
 
     return client, registry, skills, config
 
@@ -693,7 +699,7 @@ def process_agent_loop(
     from shared.utils.colors import MAGENTA, RESET
 
     while True:
-        thinking = thinking_spinner(f"{MAGENTA}🧠 Thinking{RESET}...")
+        thinking = ThinkingSpinner(f"{Theme.THINKING}Processing request...")
         thinking.start()
 
         try:
@@ -715,19 +721,15 @@ def process_agent_loop(
 
 
 def print_exit_message(token_stats: Dict[str, int], context_window: int) -> None:
-    """
-    Print the exit message with statistics.
-
-    Args:
-        token_stats: Token statistics to display.
-        context_window: Context window size for percentage calculation.
-    """
-    from shared.utils.colors import DIM, MAGENTA, BOLD, RESET
-
-    print(f"\n{DIM}┌─{RESET}")
-    print(f"{DIM}│{RESET} {MAGENTA}⚡{RESET} Thanks for using {BOLD}agentgsd{RESET}")
-    print_stats(token_stats, context_window)
-    print(f"{DIM}└─{RESET}\n")
+    """Print the exit message with statistics."""
+    print()
+    print_separator("light", Colors.DIM)
+    print(
+        f"{Colors.BRIGHT_CYAN}{Icons.SPARKLE} Thanks for using {Colors.BOLD}agentgsd{Colors.RESET}"
+    )
+    print_separator("light", Colors.DIM)
+    print_stats_enhanced(token_stats, context_window)
+    print()
 
 
 def main_interaction_loop(
@@ -767,21 +769,18 @@ def main_interaction_loop(
             process_agent_loop(client, registry, messages, token_stats, system_prompt)
 
             # Display token statistics
-            print_stats(token_stats, config.context_window)
+            print_stats_enhanced(token_stats, config.context_window)
 
             # Check if we need to compact the conversation
             if token_stats["total"] > 0.8 * config.context_window:
-                # Compact the conversation
                 messages = compact_conversation(messages, client, system_prompt, token_stats)
-                # After compaction, we have updated the messages and the token_stats (inside the function)
-                # We can print a message to the user that compaction occurred
-                print(f"\n{YELLOW}⚠{RESET} Conversation compacted to save context.{RESET}\n")
+                Notification.warning("Conversation compacted to save context", Icons.WARNING)
 
         except (KeyboardInterrupt, EOFError):
             print_exit_message(token_stats, config.context_window)
             break
         except Exception as err:
-            print(f"\n{RED}✗ Error: {err}{RESET}")
+            Notification.error(f"Error: {err}", Icons.CROSS)
             import traceback
 
             traceback.print_exc()

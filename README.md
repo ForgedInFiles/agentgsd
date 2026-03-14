@@ -11,7 +11,13 @@
 
 Designed for developers who demand precision and efficiency, agentgsd offers:
 - Multi-provider support: Choose between cloud APIs (OpenRouter, Gemini, Groq, Mistral) or local endpoints (Ollama, LMStudio)
-- Rich terminal interface with syntax highlighting, autocomplete, and command history
+- **Professional terminal UI** - Beautiful, color-coordinated interface inspired by Claude Code and OpenCode with:
+  - Semantic color palette for different message types
+  - Rich tool call formatting with color-coded icons
+  - Beautiful message blocks with Unicode framing
+  - Animated thinking spinners
+  - Progress bars for context usage
+  - Styled notifications (success/error/warning)
 - Comprehensive file manipulation, search, shell, **git**, and **web browsing** tools
 - **Semantic code indexer** - TF-IDF based search without external APIs
 - **Autonomous task execution** - State machine workflows for bug fixes, features, refactoring

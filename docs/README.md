@@ -45,6 +45,15 @@ The **planner module** generates structured plans before execution with:
 ### Thought Visualization
 The **thoughts module** provides real-time visualization of the agent's reasoning process with different thought types (analysis, planning, decision, execution, validation, correction).
 
+### Professional Terminal UI
+agentgsd features a **professional, polished CLI** inspired by top-tier AI coding assistants like Claude Code, OpenCode, and Pi Agent:
+- **Semantic color palette** - Consistent colors for different message types (success, error, warning, info)
+- **Rich tool call formatting** - Color-coded icons for each tool type (📖 read, 📝 write, 💻 bash, etc.)
+- **Beautiful message blocks** - Proper framing with Unicode box-drawing characters
+- **Animated thinking spinner** - Visual feedback during AI processing
+- **Progress bars** - Visual context usage indicators
+- **Notification system** - Styled success/error/warning messages
+
 ### Agent Skills
 Based on the [agentskills.io](https://agentskills.io) open standard, **Skills** are portable instructions that teach the agent how to follow complex workflows or use specific sets of tools. Includes **GSDMode** - a Superpowers-inspired workflow for structured software development.
 
