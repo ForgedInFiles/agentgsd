@@ -7,13 +7,18 @@
 
 ## Overview
 
-**agentgsd** is an elite coding assistant with multi-provider support (OpenRouter, Gemini, Groq, Mistral, Ollama, LMStudio) and a rich terminal UI. It combines the power of diverse LLMs with a comprehensive toolset and an extensible skills system based on the [agentskills.io](https://agentskills.io) open standard.
+**agentgsd** is an elite AI coding assistant with multi-provider support (OpenRouter, Gemini, Groq, Mistral, Ollama, LMStudio) and a rich terminal UI. It combines the power of diverse LLMs with a comprehensive toolset and an extensible skills system based on the [agentskills.io](https://agentskills.io) open standard.
 
 Designed for developers who demand precision and efficiency, agentgsd offers:
 - Multi-provider support: Choose between cloud APIs (OpenRouter, Gemini, Groq, Mistral) or local endpoints (Ollama, LMStudio)
 - Rich terminal interface with syntax highlighting, autocomplete, and command history
-- Comprehensive file manipulation, search, and **web browsing** tools
-- Extensible skills system with built-in support for Playwright and Agent-Browser
+- Comprehensive file manipulation, search, shell, **git**, and **web browsing** tools
+- **Semantic code indexer** - TF-IDF based search without external APIs
+- **Autonomous task execution** - State machine workflows for bug fixes, features, refactoring
+- **Self-correcting code generation** - Automatic validation and fix loops
+- **Interactive planning** - Reviewable plans with user approval
+- **Real-time thought visualization** - See the agent's reasoning
+- Extensible skills system with built-in GSDMode workflow
 - Real-time token usage tracking and statistics
 - Markdown rendering for beautiful terminal output
 
@@ -39,12 +44,23 @@ agentgsd/
 │   ├── skills/                   # Skills system implementation
 │   │   ├── __init__.py
 │   │   └── loader.py
-│   ├── tools/                    # Built-in tools (file, search, shell)
+│   ├── indexer/                  # TF-IDF semantic code indexer
+│   │   └── __init__.py
+│   ├── tools/                    # Built-in tools (file, search, shell, git)
 │   │   ├── __init__.py
 │   │   ├── base.py               # Tool base class and registry
 │   │   ├── file_tools.py         # File manipulation tools
-│   │   ├── search_tools.py       # Search tools (grep, find)
-│   │   └── shell_tools.py        # Shell operation tools
+│   │   ├── search_tools.py       # Search tools (grep, glob, find)
+│   │   ├── shell_tools.py        # Shell operation tools
+│   │   ├── git_tools.py          # Git operation tools
+│   │   ├── indexer_tools.py      # Semantic indexer tools
+│   │   └── web_tools.py          # Web search/fetch tools
+│   ├── workflows/                # Autonomous task execution
+│   │   ├── __init__.py
+│   │   ├── engine.py             # State machine workflow engine
+│   │   ├── corrector.py          # Self-correcting code generation
+│   │   ├── planner.py             # Interactive planning
+│   │   └── thoughts.py            # Thought visualization
 │   ├── ui/                       # UI components and prompts
 │   │   ├── __init__.py
 │   │   ├── completer.py          # Auto-completion
@@ -60,16 +76,20 @@ agentgsd/
 │   │   └── SKILL.md
 │   ├── code-review/              # Skill for conducting code reviews
 │   │   └── SKILL.md
-│   └── flask-apps/               # Skill for Flask application development
+│   ├── flask-apps/               # Skill for Flask application development
+│   │   └── SKILL.md
+│   └── gsdmode/                  # GSDMode - Superpowers workflow
 │       └── SKILL.md
 ├── docs/                         # Documentation
 │   ├── API.md                    # API documentation
-│   └── TOOLS.md                  # Tools documentation
+│   ├── TOOLS.md                  # Tools documentation
+│   ├── SKILLS.md                 # Skills documentation
+│   ├── PROVIDERS.md              # Provider configuration
+│   └── CLI.md                    # CLI reference
 ├── tests/                        # Test suite
 ├── pyproject.toml                # Project configuration
-├── setup.py                      # Setup script (legacy)
 ├── README.md                     # This file
-└── requirements.txt              # Dependencies (if maintained separately)
+└── LICENSE                       # MIT License
 ```
 
 ## Installation
@@ -141,24 +161,49 @@ Once running, you can use these commands:
 The assistant can use various tools to help with coding tasks. You can either ask the assistant to use tools naturally, or invoke them directly:
 
 #### File Tools
-- `read(path)` - Read file with line numbers
+- `read(path, offset?, limit?)` - Read file with line numbers
 - `write(path, content)` - Write content to file
-- `edit(path, old, new, all=false)` - Replace text in file
+- `edit(path, old, new, all?)` - Replace text in file
 - `mkdir(path)` - Create directory
 - `ls(path?)` - List directory contents
-- `tree(path?)` - Show directory tree
+- `tree(path?, depth?)` - Show directory tree
+- `head(path, n?)` - Show first N lines
+- `tail(path, n?)` - Show last N lines
+- `wc(path)` - Count lines/words/chars
+- `pwd()` - Get current directory
 
 #### Search Tools
 - `grep(pat, path?)` - Search files for regex pattern
 - `find(name, path?)` - Find files by name pattern
+- `glob(pat, path?)` - Find files by glob pattern
+
+#### Git Tools
+- `git_status(repo_path?)` - Show working tree status
+- `git_diff(repo_path?, staged?, staged_only?)` - Show changes
+- `git_log(repo_path?, max_count?)` - Show commit logs
+- `git_branch(repo_path?, branch_name?, create?, delete?)` - List/create/delete branches
+- `git_commit(repo_path?, message?, amend?, all?)` - Record changes
+- `git_add(repo_path?, files?, all_files?)` - Stage file changes
+- `git_reset(repo_path?, mode?, target?, unstage?)` - Unstage changes
+- `git_checkout(repo_path?, branch_name?, create_branch?, file_path?)` - Switch branches
+- `git_push(repo_path?, remote?, branch?, set_upstream?)` - Push to remote
+- `git_pull(repo_path?, remote?, branch?)` - Pull from remote
+
+#### Indexer Tools
+- `index_build(max_files?, path?)` - Build semantic code index
+- `index_search(query, top_k?)` - Search indexed code
+- `index_stats()` - Show index statistics
 
 #### System Tools
 - `bash(cmd)` - Run shell command
-- `pwd_tool()` - Get current working directory
-- `env_tool(key?)` - Get environment variable value
+- `env(key?)` - Get environment variable value
 
 #### Skills Tool
 - `skill(name)` - Activate an agent skill
+
+#### Web Tools
+- `web_search(query, max_results?)` - Search the web
+- `web_fetch(url)` - Fetch web page content
 
 Example interaction:
 ```

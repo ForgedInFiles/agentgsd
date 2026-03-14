@@ -304,6 +304,117 @@ Activate an agent skill.
 result = skill_tool.execute({"name": "code-review"})
 ```
 
+### Git Tools
+
+#### GitStatusTool
+Show working tree status.
+
+**Parameters:**
+- `repo_path` (string?, optional): Path to git repository (default: current directory)
+
+**Returns:** Formatted status output
+
+#### GitDiffTool
+Show changes between commits, working tree, etc.
+
+**Parameters:**
+- `repo_path` (string?, optional): Path to git repository
+- `staged` (boolean?, optional): Show staged changes
+- `staged_only` (boolean?, optional): Show only staged changes
+
+#### GitLogTool
+Show commit logs.
+
+**Parameters:**
+- `repo_path` (string?, optional): Path to git repository
+- `max_count` (number?, optional): Maximum commits to show (default: 10)
+
+#### GitBranchTool
+List, create, or delete branches.
+
+**Parameters:**
+- `repo_path` (string?, optional): Path to git repository
+- `branch_name` (string?, optional): Branch name
+- `create` (boolean?, optional): Create new branch
+- `delete` (boolean?, optional): Delete branch
+
+#### GitCommitTool
+Record changes to the repository.
+
+**Parameters:**
+- `repo_path` (string?, optional): Path to git repository
+- `message` (string, required): Commit message
+- `amend` (boolean?, optional): Amend previous commit
+- `all` (boolean?, optional): Stage all modified files
+
+#### GitAddTool
+Add file contents to staging area.
+
+**Parameters:**
+- `repo_path` (string?, optional): Path to git repository
+- `files` (string?, optional): Files to stage (default: all)
+- `all_files` (boolean?, optional): Stage all modified files
+
+#### GitResetTool
+Unstage changes or reset HEAD.
+
+**Parameters:**
+- `repo_path` (string?, optional): Path to git repository
+- `mode` (string?, optional): Reset mode (soft, mixed, hard)
+- `target` (string?, optional): Commit to reset to
+- `unstage` (boolean?, optional): Only unstage files
+
+#### GitCheckoutTool
+Switch branches or restore files.
+
+**Parameters:**
+- `repo_path` (string?, optional): Path to git repository
+- `branch_name` (string?, optional): Branch to switch to
+- `create_branch` (boolean?, optional): Create and switch to new branch
+- `file_path` (string?, optional): File to restore
+
+#### GitPushTool
+Push changes to remote.
+
+**Parameters:**
+- `repo_path` (string?, optional): Path to git repository
+- `remote` (string?, optional): Remote name (default: origin)
+- `branch` (string?, optional): Branch to push
+- `set_upstream` (boolean?, optional): Set upstream
+
+#### GitPullTool
+Pull from remote.
+
+**Parameters:**
+- `repo_path` (string?, optional): Path to git repository
+- `remote` (string?, optional): Remote name (default: origin)
+- `branch` (string?, optional): Branch to pull
+
+### Indexer Tools
+
+#### IndexBuildTool
+Build or rebuild the semantic code index.
+
+**Parameters:**
+- `max_files` (number?, optional): Maximum files to index
+- `path` (string?, optional): Root path to index
+
+**Returns:** Index statistics
+
+#### IndexSearchTool
+Search the semantic code index.
+
+**Parameters:**
+- `query` (string, required): Search query
+- `top_k` (number?, optional): Number of results (default: 10)
+
+**Returns:** Search results with similarity scores
+
+#### IndexStatsTool
+Get index statistics.
+
+**Returns:** Index statistics (files, symbols, vocabulary size)
+
 ## Tool Registration
 
 Tools are typically registered in a `ToolRegistry`:
@@ -384,6 +495,15 @@ registry.register(HelloTool())
 
 ### Shell Operations
 - Bash, Env
+
+### Git Operations
+- git_status, git_diff, git_log, git_branch, git_commit, git_add, git_reset, git_checkout, git_push, git_pull
+
+### Indexer Operations
+- index_build, index_search, index_stats
+
+### Web Operations
+- web_search, web_fetch
 
 ### System Operations
 - Skill (activate agent skills)
