@@ -54,6 +54,88 @@ from shared.ui import (
 )
 
 
+def compact_conversation(messages, client, system_prompt, token_stats):
+    """
+    Compact the conversation history to reduce token usage.
+    Summarizes older parts of the conversation and keeps the most recent exchanges.
+    Returns the new message list.
+    """
+    # We keep the last 6 messages (3 exchanges) as recent context
+    if len(messages) <= 6:
+        return messages
+
+    # Prepare the conversation to summarize (all except the last 6 messages)
+    conversation_to_summarize = ""
+    for msg in messages[0 : len(messages) - 6]:
+        role = msg.get("role", "unknown")
+        content = msg.get("content", "")
+        if role == "user":
+            conversation_to_summarize += f"User: {content}\n"
+        elif role == "assistant":
+            conversation_to_summarize += f"Assistant: {content}\n"
+        elif role == "tool":
+            tool_name = msg.get("name", "unknown")
+            conversation_to_summarize += f"Tool ({tool_name}): {content}\n"
+        else:
+            conversation_to_summarize += f"{role}: {content}\n"
+
+    # If there's nothing to summarize, return the original messages
+    if not conversation_to_summarize.strip():
+        return messages
+
+    # Prepare the prompt for summarization
+    summary_prompt = f"Please summarize the following conversation concisely, preserving key information and decisions:\n\n{conversation_to_summarize}"
+
+    # We'll use a simple system prompt for summarization
+    system_prompt_summary = "You are a helpful assistant that summarizes conversations."
+
+    # Prepare the messages for the summarization call
+    summary_messages = [
+        {"role": "system", "content": system_prompt_summary},
+        {"role": "user", "content": summary_prompt},
+    ]
+
+    try:
+        # Make the API call for summarization
+        response = client.call_api(summary_messages, system_prompt_summary, {})
+        # Extract the summary from the response
+        summary_text = ""
+        for block in response.get("content", []):
+            if block.get("type") == "text":
+                summary_text += block.get("text", "")
+        # If we got a summary, use it; otherwise, fall back to a placeholder
+        if not summary_text.strip():
+            summary_text = "[Summary generation failed or returned empty]"
+    except Exception as e:
+        # If summarization fails, we return the original messages to avoid data loss
+        print(f"Warning: Compaction failed due to: {e}")
+        return messages
+
+    # Form the summary message from the assistant
+    summary_msg = {
+        "role": "assistant",
+        "content": f"I've summarized the conversation to save context. Summary: {summary_text}",
+    }
+
+    # Keep the last 6 messages as recent context
+    recent_messages = messages[-6:]
+
+    # The new message list is the summary message followed by the recent messages
+    new_messages = [summary_msg] + recent_messages
+
+    # Update token stats with the usage from the summarization call
+    try:
+        usage = client.get_usage()
+        token_stats["input"] += usage.get("input_tokens", 0)
+        token_stats["output"] += usage.get("output_tokens", 0)
+        token_stats["total"] = token_stats["input"] + token_stats["output"]
+    except Exception:
+        # If we can't get usage, we leave token_stats as is (it will be updated on the next call)
+        pass
+
+    return new_messages
+
+
 def create_tool_registry() -> ToolRegistry:
     """
     Create and populate the tool registry with all available tools.
@@ -162,6 +244,7 @@ class CommandCompleter(Completer):
             "/s",
             "/skills",
             "/stats",
+            "/compact",
         ]
         self.tools = list(registry._tools.keys())
         self.skills = [skill.name for skill in skills]
@@ -247,6 +330,7 @@ class CommandCompleter(Completer):
             "/s": "List available skills",
             "/skills": "List available skills",
             "/stats": "Show token statistics",
+            "/compact": "Compact conversation to save context",
         }
         return meta.get(cmd, "Command")
 
@@ -288,14 +372,18 @@ def handle_command(
     user_input: str,
     messages: List[Dict[str, Any]],
     token_stats: Dict[str, int],
+    client: ApiClient,
+    system_prompt: str,
 ) -> Optional[str]:
     """
-    Handle special commands (/q, /c, /h, /stats, /s).
+    Handle special commands (/q, /c, /h, /stats, /s, /compact).
 
     Args:
         user_input: The user's input string.
         messages: The conversation messages list (for clearing).
         token_stats: Token statistics dict (for resetting).
+        client: The API client for making requests.
+        system_prompt: The system prompt for the API.
 
     Returns:
         Optional[str]: None to continue, "quit" to exit, or result string to display.
@@ -323,6 +411,11 @@ def handle_command(
         bar = context_bar(token_stats["total"], config.context_window)
         stats = f"  {DIM}│{RESET} 📊 {BOLD}In:{format_tokens(token_stats['input'])}{RESET} {DIM}·{RESET} {BOLD}Out:{format_tokens(token_stats['output'])}{RESET} {DIM}·{RESET} {BOLD}Ctx:{pct:.1f}%{RESET} {bar}"
         print(stats)
+        return None
+
+    if user_input == "/compact":
+        messages = compact_conversation(messages, client, system_prompt, token_stats)
+        print(f"\n{YELLOW}⚠{RESET} Conversation compacted.{RESET}\n")
         return None
 
     if user_input in ("/s", "/skills"):
@@ -461,6 +554,8 @@ def handle_user_input(
     skills: List[Any],
     messages: List[Dict[str, Any]],
     token_stats: Dict[str, int],
+    client: ApiClient,
+    system_prompt: str,
 ) -> Optional[str]:
     """
     Get and handle user input.
@@ -470,6 +565,8 @@ def handle_user_input(
         skills: List of loaded skills.
         messages: The conversation messages list.
         token_stats: Token statistics dict.
+        client: The API client for making requests.
+        system_prompt: The system prompt for the API.
 
     Returns:
         Optional[str]: None to continue, "quit" to exit, or "continue" to proceed.
@@ -479,7 +576,7 @@ def handle_user_input(
     if not user_input:
         return None
 
-    result = handle_command(user_input, messages, token_stats)
+    result = handle_command(user_input, messages, token_stats, client, system_prompt)
     if result == "quit":
         return "quit"
     if result is None:
@@ -572,7 +669,9 @@ def main_interaction_loop(
 
     while True:
         try:
-            result = handle_user_input(registry, skills, messages, token_stats)
+            result = handle_user_input(
+                registry, skills, messages, token_stats, client, system_prompt
+            )
 
             if result == "quit":
                 print_exit_message(token_stats, config.context_window)
@@ -585,6 +684,14 @@ def main_interaction_loop(
 
             # Display token statistics
             print_stats(token_stats, config.context_window)
+
+            # Check if we need to compact the conversation
+            if token_stats["total"] > 0.8 * config.context_window:
+                # Compact the conversation
+                messages = compact_conversation(messages, client, system_prompt, token_stats)
+                # After compaction, we have updated the messages and the token_stats (inside the function)
+                # We can print a message to the user that compaction occurred
+                print(f"\n{YELLOW}⚠{RESET} Conversation compacted to save context.{RESET}\n")
 
         except (KeyboardInterrupt, EOFError):
             print_exit_message(token_stats, config.context_window)
