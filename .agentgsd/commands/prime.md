@@ -1,7 +1,7 @@
 ---
 name: prime
 description: Create an AGENTS.md file with project guidelines for AI agents
-aliases: [agents]
+aliases: [init]
 ---
 
 Create an AGENTS.md file in the project root following best practices. The file should be maximum 250 lines and include:
