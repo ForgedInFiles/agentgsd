@@ -89,6 +89,15 @@ The UI displays styled notifications for:
 - ⚠️ Warning (yellow)
 - ℹ️ Info (cyan)
 
+### ESC Interrupt
+
+Press `ESC` to interrupt ongoing API requests. This is useful for:
+- Stopping long-running responses
+- Canceling requests that are taking too long
+- Regaining control when the AI is processing
+
+The interrupt works during API calls and will gracefully stop the request without crashing the application.
+
 ## Autocomplete
 
 The CLI features rich autocompletion for:

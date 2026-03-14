@@ -51,8 +51,15 @@ agentgsd features a **professional, polished CLI** inspired by top-tier AI codin
 - **Rich tool call formatting** - Color-coded icons for each tool type (📖 read, 📝 write, 💻 bash, etc.)
 - **Beautiful message blocks** - Proper framing with Unicode box-drawing characters
 - **Animated thinking spinner** - Visual feedback during AI processing
-- **Progress bars** - Visual context usage indicators
+- **Progress bars** - Visual context usage indicators with color coding (green/yellow/red)
 - **Notification system** - Styled success/error/warning messages
+- **ESC interrupt** - Press ESC to interrupt ongoing API requests
+
+### Token Management
+- **Real-time tracking** - Monitor input/output/total tokens during conversation
+- **Context window visualization** - Color-coded progress bar shows usage percentage
+- **Automatic compaction** - Conversation is summarized when context exceeds 80% usage
+- **User-friendly display** - Formatted token counts (K/M suffixes) for easy reading
 
 ### Agent Skills
 Based on the [agentskills.io](https://agentskills.io) open standard, **Skills** are portable instructions that teach the agent how to follow complex workflows or use specific sets of tools. Includes **GSDMode** - a Superpowers-inspired workflow for structured software development.

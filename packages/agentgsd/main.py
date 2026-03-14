@@ -9,81 +9,79 @@ and the main agentic loop for processing user requests.
 import argparse
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from prompt_toolkit import prompt
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.key_binding import KeyBindings
 
 from shared.api import ApiClient
+from shared.commands import load_commands
 from shared.config import load_config
-from shared.skills import load_skills, skills_xml, activate_skill
-from shared.commands import load_commands, execute_command, commands_list
+from shared.skills import activate_skill, load_skills, skills_xml
 from shared.tools import (
-    Tool,
-    ToolRegistry,
-    ReadTool,
-    WriteTool,
-    EditTool,
-    MkdirTool,
-    LsTool,
-    TreeTool,
-    HeadTool,
-    TailTool,
-    WcTool,
-    PwdTool,
-    GrepTool,
-    GlobTool,
-    FindTool,
     BashTool,
+    EditTool,
     EnvTool,
-    GitStatusTool,
+    FindTool,
+    GitAddTool,
+    GitBranchTool,
+    GitCheckoutTool,
+    GitCommitTool,
     GitDiffTool,
     GitLogTool,
-    GitBranchTool,
-    GitCommitTool,
-    GitAddTool,
-    GitResetTool,
-    GitCheckoutTool,
-    GitPushTool,
     GitPullTool,
+    GitPushTool,
+    GitResetTool,
+    GitStatusTool,
+    GlobTool,
+    GrepTool,
+    HeadTool,
+    LsTool,
+    MkdirTool,
+    PwdTool,
+    ReadTool,
+    TailTool,
+    Tool,
+    ToolRegistry,
+    TreeTool,
+    WcTool,
+    WriteTool,
 )
 from shared.tools.indexer_tools import (
     IndexBuildTool,
     IndexSearchTool,
     IndexStatsTool,
 )
-from shared.tools.web_tools import WebSearchTool, WebFetchTool
+from shared.tools.web_tools import WebFetchTool, WebSearchTool
+from shared.ui import (
+    create_keybindings,
+)
 from shared.ui.enhanced import (
-    print_banner as print_banner_enhanced,
-    print_tool_call as print_tool_call_enhanced,
-    print_tool_result as print_tool_result_enhanced,
-    print_stats as print_stats_enhanced,
+    Colors,
+    EnhancedPrompt,
+    Icons,
+    Notification,
+    Theme,
+    ThinkingSpinner,
     print_assistant_message,
     print_help_detailed,
-    print_skills_list,
     print_separator,
-    Notification,
-    ThinkingSpinner,
-    Colors,
-    Theme,
-    Icons,
-    EnhancedPrompt,
-    format_tokens,
-    context_bar,
+    print_skills_list,
 )
-from shared.ui import (
-    style,
-    print_banner,
-    print_tool_call,
-    print_tool_result,
-    print_stats,
-    show_help_popup,
-    create_keybindings,
-    get_prompt_config,
+from shared.ui.enhanced import (
+    print_banner as print_banner_enhanced,
+)
+from shared.ui.enhanced import (
+    print_stats as print_stats_enhanced,
+)
+from shared.ui.enhanced import (
+    print_tool_call as print_tool_call_enhanced,
+)
+from shared.ui.enhanced import (
+    print_tool_result as print_tool_result_enhanced,
 )
 
 
@@ -141,7 +139,8 @@ def compact_conversation(messages, client, system_prompt, token_stats):
             summary_text = "[Summary generation failed or returned empty]"
     except Exception as e:
         # If summarization fails, we return the original messages to avoid data loss
-        print(f"Warning: Compaction failed due to: {e}")
+        # Use Notification to display the error in a user-friendly way
+        Notification.warning(f"Compaction failed: {e}", Icons.WARNING)
         return messages
 
     # Form the summary message from the assistant
@@ -229,7 +228,7 @@ def create_tool_registry() -> ToolRegistry:
                 parameters={"name": "string"},
             )
 
-        def execute(self, args: Dict[str, Any]) -> str:
+        def execute(self, args: dict[str, Any]) -> str:
             """Activate an agent skill.
 
             Args:
@@ -247,7 +246,7 @@ def create_tool_registry() -> ToolRegistry:
     return registry
 
 
-def run_tool(registry: ToolRegistry, name: str, args: Dict[str, Any]) -> str:
+def run_tool(registry: ToolRegistry, name: str, args: dict[str, Any]) -> str:
     """
     Execute a tool by name with the given arguments.
 
@@ -277,7 +276,9 @@ def run_tool(registry: ToolRegistry, name: str, args: Dict[str, Any]) -> str:
 class CommandCompleter(Completer):
     """Custom completer for commands, tools, and file paths."""
 
-    def __init__(self, registry: ToolRegistry, skills: List[Any], commands: List[Any] = None):
+    def __init__(
+        self, registry: ToolRegistry, skills: list[Any], commands: Optional[list[Any]] = None
+    ):
         """Initialize the completer with available commands, tools, and skills.
 
         Args:
@@ -305,6 +306,8 @@ class CommandCompleter(Completer):
         # Add custom commands to completion list
         for cmd in commands or []:
             self.commands.append(f"/{cmd.name}")
+        # Store custom command metadata for completion display
+        self.custom_command_meta = {f"/{cmd.name}": cmd.description for cmd in (commands or [])}
 
     def get_completions(self, document, complete_event):
         """Get completions for the current input.
@@ -389,6 +392,9 @@ class CommandCompleter(Completer):
             "/stats": "Show token statistics",
             "/compact": "Compact conversation to save context",
         }
+        # Check if it's a custom command with metadata
+        if cmd in getattr(self, "custom_command_meta", {}):
+            return self.custom_command_meta[cmd]
         return meta.get(cmd, "Command")
 
 
@@ -424,7 +430,9 @@ class InputCounter:
         self.last_text = text
 
 
-def get_input(registry: ToolRegistry, skills: List[Any], commands: List[Any] = None) -> str:
+def get_input(
+    registry: ToolRegistry, skills: list[Any], commands: Optional[list[Any]] = None
+) -> str:
     """
     Get user input using prompt_toolkit with completion support.
 
@@ -449,7 +457,7 @@ def get_input(registry: ToolRegistry, skills: List[Any], commands: List[Any] = N
 
     try:
         user_input = prompt(
-            HTML(f"<prompt>❯ </prompt>"),
+            HTML("<prompt>❯ </prompt>"),
             completer=completer,
             complete_while_typing=True,
             style=EnhancedPrompt.get_style(),
@@ -472,11 +480,11 @@ def get_input(registry: ToolRegistry, skills: List[Any], commands: List[Any] = N
 
 def handle_command(
     user_input: str,
-    messages: List[Dict[str, Any]],
-    token_stats: Dict[str, int],
+    messages: list[dict[str, Any]],
+    token_stats: dict[str, int],
     client: ApiClient,
     system_prompt: str,
-    commands: List[Any] = None,
+    commands: Optional[list[Any]] = None,
 ) -> Optional[str]:
     """
     Handle special commands (/q, /c, /h, /stats, /s, /compact).
@@ -575,35 +583,24 @@ def handle_command(
 
 
 def process_response(
-    response: Dict[str, Any],
+    response: dict[str, Any],
     registry: ToolRegistry,
-    messages: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    messages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """
     Process API response and execute any tool calls.
-
-    Args:
-        response: The API response dictionary.
-        registry: The tool registry for executing tools.
-        messages: The conversation messages list to append to.
-
-    Returns:
-        List of tool results to send back to the API.
     """
-    from shared.utils.colors import CYAN
 
     tool_results = []
     content_blocks = response.get("content", [])
 
+    # Collect all text blocks to display as a single message
+    text_blocks = []
     for block in content_blocks:
         if block.get("type") == "text":
             text_content = block.get("text", "")
-            print()
-            print_separator("light", Colors.DIM)
-            print_assistant_message(text_content)
-            print_separator("light", Colors.DIM)
-
-        if block.get("type") == "tool_use":
+            text_blocks.append(text_content)
+        elif block.get("type") == "tool_use":
             tool_name = block.get("name")
             tool_args = block.get("input", {})
             print_tool_call_enhanced(tool_name, tool_args)
@@ -619,6 +616,14 @@ def process_response(
                 }
             )
 
+    # Display all text content as a single framed message
+    if text_blocks:
+        full_text = "".join(text_blocks)
+        print()
+        print_separator("light", Colors.DIM)
+        print_assistant_message(full_text)
+        print_separator("light", Colors.DIM)
+
     messages.append({"role": "assistant", "content": content_blocks})
 
     return tool_results
@@ -628,7 +633,7 @@ def setup_environment(
     provider: Optional[str] = None,
     model: Optional[str] = None,
     api_key: Optional[str] = None,
-) -> tuple[ApiClient, ToolRegistry, List[Any], object]:
+) -> tuple[ApiClient, ToolRegistry, list[Any], object]:
     """
     Set up the application environment.
 
@@ -650,7 +655,7 @@ def setup_environment(
     Raises:
         SystemExit: If API key is not found.
     """
-    from shared.utils.colors import RED, YELLOW, DIM, RESET
+    from shared.utils.colors import RED, RESET, YELLOW
 
     config = load_config(provider=provider, model=model, api_key=api_key)
 
@@ -661,6 +666,7 @@ def setup_environment(
         sys.exit(1)
 
     skills = load_skills()
+    load_commands()
     print_banner_enhanced(model=config.model, provider=config.provider, skills_count=len(skills))
 
     client = ApiClient(
@@ -695,10 +701,10 @@ When a user's request matches a skill description, use the skill tool to activat
 
 def handle_user_input(
     registry: ToolRegistry,
-    skills: List[Any],
-    commands: List[Any],
-    messages: List[Dict[str, Any]],
-    token_stats: Dict[str, int],
+    skills: list[Any],
+    commands: list[Any],
+    messages: list[dict[str, Any]],
+    token_stats: dict[str, int],
     client: ApiClient,
     system_prompt: str,
 ) -> Optional[str]:
@@ -735,8 +741,8 @@ def handle_user_input(
 def process_agent_loop(
     client: ApiClient,
     registry: ToolRegistry,
-    messages: List[Dict[str, Any]],
-    token_stats: Dict[str, int],
+    messages: list[dict[str, Any]],
+    token_stats: dict[str, int],
     system_prompt: str,
 ) -> None:
     """
@@ -752,7 +758,6 @@ def process_agent_loop(
         token_stats: Token statistics dict to update.
         system_prompt: The system prompt for the API.
     """
-    from shared.utils.colors import MAGENTA, RESET
 
     while True:
         thinking = ThinkingSpinner(f"{Theme.THINKING}Processing request...")
@@ -760,6 +765,10 @@ def process_agent_loop(
 
         try:
             response = client.call_api(messages, system_prompt, registry.make_schema())
+        except KeyboardInterrupt:
+            thinking.stop()
+            Notification.info("Request interrupted by user", Icons.WARNING)
+            break
         finally:
             thinking.stop()
 
@@ -776,7 +785,7 @@ def process_agent_loop(
         messages.append({"role": "user", "content": tool_results})
 
 
-def print_exit_message(token_stats: Dict[str, int], context_window: int) -> None:
+def print_exit_message(token_stats: dict[str, int], context_window: int) -> None:
     """Print the exit message with statistics."""
     print()
     print_separator("light", Colors.DIM)
@@ -789,7 +798,7 @@ def print_exit_message(token_stats: Dict[str, int], context_window: int) -> None
 
 
 def main_interaction_loop(
-    client: ApiClient, registry: ToolRegistry, skills: List[Any], config, system_prompt: str
+    client: ApiClient, registry: ToolRegistry, skills: list[Any], config, system_prompt: str
 ) -> None:
     """
     Main interaction loop for the agent.
@@ -804,9 +813,8 @@ def main_interaction_loop(
         config: Configuration object.
         system_prompt: The system prompt for the API.
     """
-    from shared.utils.colors import RED, RESET
 
-    messages: List[Dict[str, Any]] = []
+    messages: list[dict[str, Any]] = []
     token_stats = {"input": 0, "output": 0, "total": 0}
     commands = load_commands()
 

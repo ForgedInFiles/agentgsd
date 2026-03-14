@@ -6,10 +6,9 @@ It handles authentication, request formatting, token tracking, and response pars
 """
 
 import json
-import os
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class ApiClient:
@@ -55,7 +54,7 @@ class ApiClient:
         self._input_tokens = 0
         self._output_tokens = 0
 
-    def _build_headers(self) -> Dict[str, str]:
+    def _build_headers(self) -> dict[str, str]:
         """
         Build request headers based on the provider.
         """
@@ -82,15 +81,15 @@ class ApiClient:
 
     def _build_payload(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         system_prompt: str,
-        tools: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+        tools: Optional[list[dict[str, Any]]] = None,
+    ) -> dict[str, Any]:
         """
         Build the request payload based on the provider.
         """
         # Most providers are OpenAI-compatible
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "max_tokens": self.max_tokens,
         }
@@ -183,11 +182,11 @@ class ApiClient:
 
     def call_api(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         system_prompt: str,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        tools: Optional[list[dict[str, Any]]] = None,
         max_retries: int = 3,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Call the API and return the response in a normalized format.
 
@@ -196,9 +195,17 @@ class ApiClient:
             system_prompt: System prompt string.
             tools: Optional list of tool definitions.
             max_retries: Maximum number of retry attempts for transient errors.
+
+        Returns:
+            dict: The API response in normalized format.
+
+        Raises:
+            ValueError: If the API call fails after all retries.
         """
-        import time
+        import select
         import socket
+        import sys
+        import time
 
         headers = self._build_headers()
         payload = self._build_payload(messages, system_prompt, tools)
@@ -210,6 +217,30 @@ class ApiClient:
 
         last_error = None
         for attempt in range(max_retries):
+            # Check for interrupt key (ESC) before making the request
+            if sys.stdin.isatty():
+                try:
+                    # Use select with timeout to check for input without blocking
+                    if select.select([sys.stdin], [], [], 0.0)[0]:
+                        # Read available input
+                        import termios as termios_module
+                        import tty
+
+                        old_settings = termios_module.tcgetattr(sys.stdin)
+                        try:
+                            tty.setcbreak(sys.stdin.fileno())
+                            # Check if ESC is pressed
+                            char = sys.stdin.read(1)
+                            if char == "\x1b":  # ESC key
+                                raise KeyboardInterrupt("Request interrupted by user")
+                        finally:
+                            termios_module.tcsetattr(
+                                sys.stdin, termios_module.TCSADRAIN, old_settings
+                            )
+                except (ImportError, Exception):
+                    # If terminal operations fail, continue without interrupt support
+                    pass
+
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
                     response_data = response.read().decode("utf-8")
@@ -263,6 +294,9 @@ class ApiClient:
 
                     return normalized_result
 
+            except KeyboardInterrupt:
+                # ESC key was pressed - propagate the interrupt
+                raise
             except (urllib.error.HTTPError, TimeoutError, socket.timeout) as e:
                 last_error = e
                 if attempt < max_retries - 1:
@@ -275,23 +309,43 @@ class ApiClient:
 
         # All retries failed
         if isinstance(last_error, urllib.error.HTTPError):
+            error_body = None
             try:
                 error_body = last_error.read().decode("utf-8")
                 error_json = json.loads(error_body)
                 error_msg = error_json.get("error", {}).get("message", str(last_error))
             except (json.JSONDecodeError, AttributeError):
-                error_msg = (
-                    f"HTTP {last_error.code}: {error_body}"
-                    if hasattr(last_error, "code")
-                    else str(last_error)
-                )
+                if error_body:
+                    error_msg = (
+                        f"HTTP {last_error.code}: {error_body}"
+                        if hasattr(last_error, "code")
+                        else str(last_error)
+                    )
+                else:
+                    error_msg = str(last_error)
+
+            # Provide more specific error messages based on HTTP status code
+            if hasattr(last_error, "code"):
+                if last_error.code == 401:
+                    error_msg = f"Authentication failed: {error_msg}"
+                elif last_error.code == 402:
+                    error_msg = f"Payment required: {error_msg}"
+                elif last_error.code == 403:
+                    error_msg = f"Access forbidden: {error_msg}"
+                elif last_error.code == 404:
+                    error_msg = f"Resource not found: {error_msg}"
+                elif last_error.code == 429:
+                    error_msg = f"Rate limit exceeded: {error_msg}"
+                elif last_error.code >= 500:
+                    error_msg = f"Server error ({last_error.code}): {error_msg}"
+
             raise ValueError(f"API error after {max_retries} retries: {error_msg}") from last_error
         else:
             raise ValueError(
                 f"Request timed out after {max_retries} retries: {last_error}"
             ) from last_error
 
-    def get_usage(self) -> Dict[str, int]:
+    def get_usage(self) -> dict[str, int]:
         """
         Get the cumulative token usage statistics.
 
@@ -324,7 +378,7 @@ class ApiClient:
         self._input_tokens = 0
         self._output_tokens = 0
 
-    def make_schema(self, tools: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def make_schema(self, tools: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
         """
         Generate tool schema for API function calling.
 

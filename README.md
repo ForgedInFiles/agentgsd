@@ -151,6 +151,7 @@ Once running, you can use these commands:
 | `/h`, `/help` | Show help message |
 | `/stats` | Show token statistics |
 | `/s`, `/skills` | List available skills |
+| `/cmds`, `/commands` | List custom commands |
 
 ### Key Bindings
 
@@ -161,6 +162,21 @@ Once running, you can use these commands:
 | `F1` | Show detailed help |
 | `Ctrl+C` | Cancel current input |
 | `Ctrl+D` | Quit application |
+| `ESC` | Interrupt ongoing API request |
+
+### Token Usage & Context Management
+
+agentgsd provides real-time token usage tracking and automatic context management:
+
+- **Token Tracking**: Displays input, output, and total token counts
+- **Context Bar**: Visual progress bar showing context window usage (color-coded: green <50%, yellow 50-80%, red >80%)
+- **Automatic Compaction**: When context usage exceeds 80%, the conversation is automatically summarized to free up space
+- **ESC Interrupt**: Press ESC to interrupt long-running API requests
+
+Example token usage display:
+```
+│ token usage in:50.0K out:30.0K total:80.0K ctx:40% ██████░░░░░░░░░
+```
 
 ### Tool Usage
 

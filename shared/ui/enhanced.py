@@ -22,21 +22,15 @@ Example usage:
     )
 """
 
+import io
 import os
 import sys
 import threading
 import time
-from typing import Optional, List, Dict, Any
+from typing import Any
 
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.styles import Style
-
-from shared.skills import load_skills
-from shared.tools import ToolRegistry
 
 
 class Colors:
@@ -85,7 +79,7 @@ class Colors:
     BG_BRIGHT_WHITE = "\033[107m"
 
     @classmethod
-    def gradient(cls, text: str, colors: List[str]) -> str:
+    def gradient(cls, text: str, colors: list[str]) -> str:
         """Apply gradient coloring to text.
 
         Args:
@@ -197,7 +191,7 @@ def get_terminal_width() -> int:
     """Get current terminal width."""
     try:
         return os.get_terminal_size().columns
-    except:
+    except (OSError, io.UnsupportedOperation):
         return 80
 
 
@@ -337,8 +331,6 @@ def print_banner(model: str = None, provider: str = None, skills_count: int = No
     """
     width = get_terminal_width()
 
-    gradient_colors = [Colors.CYAN, Colors.BLUE, Colors.MAGENTA]
-
     banner_lines = [
         f"{Colors.BOLD}{Colors.BRIGHT_CYAN}╭{'─' * min(width - 4, 60)}{Colors.RESET}",
         f"{Colors.BOLD}{Colors.BRIGHT_CYAN}│{Colors.RESET} {Colors.BOLD}{Colors.BRIGHT_WHITE}agentgsd{Colors.RESET} {Colors.DIM}•{Colors.RESET} {Colors.BRIGHT_MAGENTA}Elite Coding Assistant{Colors.RESET}",
@@ -370,7 +362,7 @@ def print_banner(model: str = None, provider: str = None, skills_count: int = No
             )
         )
 
-    for i, (icon, text) in enumerate(info_items):
+    for _i, (icon, text) in enumerate(info_items):
         banner_lines.append(f"{Colors.BOLD}{Colors.BRIGHT_CYAN}│{Colors.RESET} {icon} {text}")
 
     banner_lines.append(
@@ -401,7 +393,6 @@ def print_assistant_message(content: str, show_avatar: bool = True) -> None:
         content: Message content to display
         show_avatar: Whether to show assistant avatar
     """
-    avatar = f"{Colors.BRIGHT_CYAN} assistant{Colors.RESET} "
     lines = content.split("\n")
 
     width = min(get_terminal_width() - 4, 80)
@@ -559,7 +550,7 @@ def context_bar(current: int, max_val: int, width: int = 20) -> str:
     if pct < 0.5:
         color = Colors.BRIGHT_GREEN
     elif pct < 0.8:
-        Colors.BRIGHT_YELLOW
+        color = Colors.BRIGHT_YELLOW
     else:
         color = Colors.BRIGHT_RED
 
@@ -684,7 +675,7 @@ def print_welcome_message(model: str = None) -> None:
     print(f"\n{Colors.BRIGHT_CYAN}{'─' * min(width, 60)}{Colors.RESET}\n")
 
 
-def print_help_detailed(commands: List[Any] = None) -> None:
+def print_help_detailed(commands: list[Any] = None) -> None:
     """Print detailed help information."""
     width = get_terminal_width()
 
@@ -733,7 +724,7 @@ def print_help_detailed(commands: List[Any] = None) -> None:
     print(f"{Colors.BRIGHT_CYAN}{'─' * min(width - 10, 50)}{Colors.RESET}\n")
 
 
-def print_skills_list(skills: List[Any]) -> None:
+def print_skills_list(skills: list[Any]) -> None:
     """Print available skills in a formatted list."""
     if not skills:
         print(
